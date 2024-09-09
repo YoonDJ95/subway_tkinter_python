@@ -85,6 +85,10 @@ def load_image(file_path, size):
 # 이미지 로드
 start_image_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\start_495499.png"
 end_image_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\end_12366677.png"
+trans_image_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\transportation.png"
+bu_image_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\transportation_bu.png"
+bex_image_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\transportation_bex.png"
+here_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\here.png"
 
 s_x_offset = 20
 x_offset = 11
@@ -93,6 +97,10 @@ y_offset = 50
 try:
     start_image = load_image(start_image_path, (50, 50))
     end_image = load_image(end_image_path, (50, 50))
+    transfer_image = load_image(trans_image_path, (20, 20))  # 환승역 이미지 로드
+    transfer_image_bu = load_image(bu_image_path, (40, 20))  # 환승역 이미지 로드
+    transfer_image_bex = load_image(bex_image_path, (20, 40))  # 환승역 이미지 로드
+    here_image = load_image(here_path, (30, 30))
 except FileNotFoundError as e:
     print(f"File not found: {e}")
 except Exception as e:
@@ -162,12 +170,22 @@ reset_button.pack(side=tk.LEFT, padx=5)
 time_label = tk.Label(controls_frame, text="총 여행 시간: 0 분")
 time_label.pack(side=tk.LEFT, padx=5)
 
+# 호선별 버튼을 위한 프레임 설정
+line_buttons_frame = tk.Frame(controls_frame)
+line_buttons_frame.pack(side=tk.RIGHT, fill=tk.X, padx=5)
+
+# 호선별 및 편의시설 버튼을 위한 프레임 설정
+button_frame = tk.Frame(root)
+button_frame.pack(side=tk.TOP, fill=tk.X)
+
+# 편의시설 버튼 프레임 설정
+category_btn_frame = tk.Frame(button_frame)
+category_btn_frame.pack(side=tk.RIGHT, fill=tk.X, padx=5)
+
 canvas_width = 1680
 canvas_height = 900
 canvas = tk.Canvas(root, width=canvas_width, height=canvas_height, bg='white')
 canvas.pack()
-
-
 
 clicked_stations = []  # 선택한 역을 저장할 리스트
 
@@ -230,15 +248,15 @@ def draw_map(hidden_lines=None, highlighted_stations=None):
             # 역 아이콘 그리기
             if name == '부전':
                 if name not in displayed_stations:
-                    canvas.create_oval(x-30, y-8, x+10, y+8, fill='white', outline='black', tags="station")
+                    canvas.create_image(x-10, y, image=transfer_image_bu, anchor=tk.CENTER, tags="station")
                     displayed_stations.add(name)
             elif name == '벡스코(시립미술관)':
                 if name not in displayed_stations:
-                    canvas.create_oval(x-8, y-20, x+8, y+10, fill='white', outline='black', tags="station")
+                    canvas.create_image(x, y, image=transfer_image_bex, anchor=tk.CENTER, tags="station")
                     displayed_stations.add(name)
             elif name in transfer_stations:
                 if name not in displayed_stations:
-                    canvas.create_oval(x-5, y-5, x+5, y+5, fill='white', outline='black', tags="station")
+                    canvas.create_image(x, y, image=transfer_image, anchor=tk.CENTER, tags="station")
                     displayed_stations.add(name)
             else:
                 # 일반 역의 경우
@@ -309,9 +327,6 @@ def draw_shortest_path(start, end):
     if not path:
         return
 
-    # 선택한 경로 이외의 모든 요소 삭제
-    reset_checkboxes()  # 체크박스를 모두 언체크
-
     used_lines = set()
     # 경로 상의 노선만 사용하여 노선 리스트 작성
     for i in range(len(path) - 1):
@@ -342,9 +357,9 @@ def draw_shortest_path(start, end):
         x, y = station_positions[station]
         
         if station == '부전':
-            canvas.create_oval(x-10, y-8, x+30, y+8, fill='red', outline='black', tags="station")
+            canvas.create_image(x+10, y, image=transfer_image_bu, anchor=tk.CENTER, tags="station")
         elif station == '벡스코(시립미술관)':
-            canvas.create_oval(x-8, y-10, x+8, y+20, fill='red', outline='black', tags="station")
+            canvas.create_image(x, y+10, image=transfer_image_bex, anchor=tk.CENTER, tags="station")
         else:
             canvas.create_oval(x-5, y-5, x+5, y+5, fill='red', tags="station")
         
@@ -445,35 +460,95 @@ for sheet_name, data in sheets.items():
             }
             stations.append(station_info)
 
-# 아이콘을 표시할 함수
-def show_facilities():
-    canvas.delete("facility")  # 태그가 "facility"인 아이콘만 삭제
+def show_line(line_name):
+    clear_canvas()  # 기존 노선 및 역 삭제
     
+    if line_name:
+        data = lines_df[line_name]
+        color = colors[line_name]
+        
+        # 선택된 노선의 라인만 그리기
+        for i in range(len(data) - 1):
+            station1 = data.iloc[i]['지하철명']
+            station2 = data.iloc[i + 1]['지하철명']
+            x1, y1 = data.iloc[i]['X'], data.iloc[i]['Y']
+            x2, y2 = data.iloc[i + 1]['X'], data.iloc[i + 1]['Y']
+            canvas.create_line(x1, y1, x2, y2, fill=color, width=4, smooth=True, tags="line")
+
+        
+        # 환승역을 세트로 만듭니다.
+        transfer_stations = set(transfer_df['지하철명'].unique())
+            # 역을 표시한 세트를 만듭니다.
+        displayed_stations = set()
+        
+        # 선택된 노선의 역만 그리기
+        for index, row in data.iterrows():
+            x, y = row['X'], row['Y']
+            name = row['지하철명']
+            if name in transfer_stations:
+                if name not in displayed_stations:
+                    canvas.create_image(x, y, image=transfer_image, anchor=tk.CENTER, tags="station")
+                    displayed_stations.add(name)
+            else:
+                station_color = station_colors.get(name, 'black')
+                canvas.create_oval(x-5, y-5, x+5, y+5, fill=station_color, tags="station")
+            canvas.create_text(x, y-15, text=name, fill=color, tags="station_name")
+    else:
+        draw_map()  # 선택된 노선이 없으면 모든 노선 그리기
+        
+def create_line_buttons():
+    # 각 노선별 버튼 생성
+    for line_name in colors.keys():
+        if line_name != '환승역':  # 환승역을 제외하고 버튼 생성
+            color = colors[line_name]
+            button = tk.Button(line_buttons_frame, bg=color, text=line_name, command=lambda ln=line_name: show_line(ln))
+            button.pack(side=tk.LEFT, padx=2, pady=2)
+    
+    # "전체 역 보기" 버튼 추가
+    show_all_button = tk.Button(line_buttons_frame, text="전체 역 보기", command=draw_map)
+    show_all_button.pack(side=tk.LEFT, padx=5, pady=2)
+    
+def create_facility_buttons():
+    """
+    편의시설 버튼을 생성하고 프레임에 추가합니다.
+    """
+    global facility_vars  # 전역 변수로 facility_vars를 사용
+    facility_vars = {}  # facility_vars 초기화
+
+    # 편의시설 버튼 생성
+    for facility in ['엘레베이터', '휠체어리프트', '환승주차장', '자전거보관소', '물품보관함', '자동사진기', '도시철도경찰대', '섬식형', '반대방향']:
+        var = tk.IntVar()  # 체크박스의 상태를 관리할 변수
+        facility_vars[facility] = var
+        button = tk.Button(category_btn_frame, text=facility, command=lambda f=facility: show_facilities(f))
+        button.pack(side=tk.LEFT, padx=2, pady=2)   
+
+
+
+def show_facilities(selected_facility=None):
+    """
+    선택된 편의시설을 화면에 표시합니다.
+    """
+    canvas.delete("facility")  # 태그가 "facility"인 아이콘만 삭제
+    draw_map()
     for station in stations:
         x, y = station['x'], station['y']
-        for facility, var in facility_vars.items():
-            if var.get() == 1 and station['facilities'][facility] == 1:
-                # 선택된 편의시설이 있는 경우 아이콘을 표시
-                canvas.create_oval(x-5, y-5, x+5, y+5, fill="blue", tags="facility")  # 태그 "facility" 추가
-                break  # 한 역에 여러 시설이 있어도 하나만 표시
+        # 모든 시설 표시 또는 선택된 시설이 있는 경우만 표시
+        if selected_facility is None:
+            for facility in facility_vars.keys():
+                if station['facilities'].get(facility, 0) == 1:
+                    # 모든 시설 아이콘을 표시
+                    canvas.create_image(x, y-15, image=here_image, anchor=tk.CENTER, tags="facility")
+                    break
+        else:
+            if station['facilities'].get(selected_facility, 0) == 1:
+                # 선택된 시설 아이콘을 표시
+                    canvas.create_image(x, y-15, image=here_image, anchor=tk.CENTER, tags="facility")
 
 
-# 체크박스 패널 생성
-checkbox_frame = Frame(root)
-checkbox_frame.pack(side=RIGHT, fill=Y)
 
-# 체크박스 생성 함수
-for facility, var in facility_vars.items():
-    chk = Checkbutton(checkbox_frame, text=facility, variable=var, command=show_facilities)
-    chk.pack(anchor=W)
+create_facility_buttons()  # 편의시설 버튼 생성
     
-def reset_checkboxes():
-    # 모든 체크박스를 해제 (IntVar() 값을 0으로 설정)
-    for var in facility_vars.values():
-        var.set(0)
 
-
-
-
+create_line_buttons()
 draw_map()
 root.mainloop()
