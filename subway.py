@@ -3,12 +3,18 @@ import tkinter as tk
 import copy
 
 # 엑셀 파일을 시트별로 불러오기
-excel_file = r'C:\\py\\프로젝트\\subway.xlsx'
+excel_file = r'C:\\subway_tkinter\\subway_tkinter\\subway.xlsx'
 sheets = pd.read_excel(excel_file, sheet_name=None)
 
 # 노선과 환승역 시트 분리
-lines_df = {name: df for name, df in sheets.items() if name != '환승역'}
+lines_df = {name: df for name, df in sheets.items() if name not in ['환승역','호선정보']}
 transfer_df = sheets.get('환승역', pd.DataFrame())
+
+# 호선 정보 불러오기
+line_info_df = pd.read_excel(excel_file, sheet_name='호선정보')  # '호선정보' 시트에서 데이터 읽기
+line_info = line_info_df.set_index('지하철명').to_dict()['노선']
+
+
 
 # 그래프 초기화
 landscape = {}
@@ -69,6 +75,64 @@ for i in range(len(transfer_df)):
 # tkinter 창 생성
 root = tk.Tk()
 root.title("지하철 노선도")
+
+# 출발역과 도착역을 설정하여 경로 찾기
+def set_stations():
+    start = start_entry.get()
+    end = end_entry.get()
+    if start and end:
+        draw_shortest_path(start, end)
+
+# 리셋 버튼의 콜백 함수
+def reset_selection():
+    global clicked_stations
+    clicked_stations = []
+    
+    # 출발역과 도착역 입력 필드 비우기
+    start_entry.delete(0, tk.END)
+    end_entry.delete(0, tk.END)
+    
+    # 총 여행 시간 및 거리 초기화
+    time_label.config(text="총 여행 시간: 0 분")
+    details_text.delete(1.0, tk.END)  # 기존 텍스트 삭제
+    # 초기 맵 다시 그리기
+    draw_map()
+    
+    
+    
+
+# 우측 영역에 경로 세부정보를 표시할 프레임 추가
+info_frame = tk.Frame(root, padx=10, pady=10, bg='lightgrey', width=300)
+info_frame.pack(side=tk.RIGHT, fill=tk.Y)
+
+details_label = tk.Label(info_frame, text="경로 세부정보", font=("Arial", 12, "bold"), bg='lightgrey')
+details_label.pack(pady=(0, 10))
+
+details_text = tk.Text(info_frame, width=40, height=20, wrap=tk.WORD, padx=5, pady=5)
+details_text.pack(expand=True)
+
+# 입출력 및 버튼 배치
+controls_frame = tk.Frame(root, padx=10, pady=10)
+controls_frame.pack(side=tk.TOP, fill=tk.X)
+
+start_label = tk.Label(controls_frame, text="출발역:")
+start_label.pack(side=tk.LEFT, padx=5)
+start_entry = tk.Entry(controls_frame)
+start_entry.pack(side=tk.LEFT, padx=5)
+
+end_label = tk.Label(controls_frame, text="도착역:")
+end_label.pack(side=tk.LEFT, padx=5)
+end_entry = tk.Entry(controls_frame)
+end_entry.pack(side=tk.LEFT, padx=5)
+
+set_button = tk.Button(controls_frame, text="경로 찾기", command=set_stations)
+set_button.pack(side=tk.LEFT, padx=5)
+
+reset_button = tk.Button(controls_frame, text="리셋", command=reset_selection)
+reset_button.pack(side=tk.LEFT, padx=5)
+
+time_label = tk.Label(controls_frame, text="총 여행 시간: 0 분")
+time_label.pack(side=tk.LEFT, padx=5)
 
 canvas_width = 1680
 canvas_height = 900
@@ -245,14 +309,11 @@ def draw_shortest_path(start, end):
         
         canvas.create_text(x, y-15, text=station, fill='red', tags="station")
         
-
-    # 경로와 거리 출력
-    print(f"최단 경로: {start} -> {end}는 {path}이며 거리: {distance}")
-
     # 거리와 시간 계산
     total_distance = 0  # 총 거리 (Km)
     total_time = 0  # 총 시간 (분)
     prev_line = None
+    segment_distances = []
 
     for i in range(len(path) - 1):
         station1 = path[i]
@@ -261,10 +322,12 @@ def draw_shortest_path(start, end):
 
         if prev_line is None or prev_line == line1:
             # 동일 노선 이동: 2km, 2분씩 증가
+            segment_distances.append(2)
             total_distance += 2
             total_time += 2
         else:
             # 환승: 4km, 4분 추가
+            segment_distances.append(6)  # 기본 2km 이동 + 4km 환승 거리
             total_distance += 6  # 기본 2km 이동 + 4km 환승 거리
             total_time += 6  # 기본 2분 이동 + 4분 환승 시간
 
@@ -277,50 +340,26 @@ def draw_shortest_path(start, end):
     # UI에 시간 정보 업데이트
     time_label.config(text=f"총 여행 시간: {total_time} 분, 총 이동 거리: {total_distance} km")
 
+    # 경로 세부정보 업데이트
+    update_details(path, {
+        'total_distance': total_distance,
+        'total_time': total_time,
+        'segment_distances': segment_distances
+    })
+
+# 경로 세부정보 업데이트 함수
+def update_details(path, distances):
+    details_text.delete(1.0, tk.END)  # 기존 텍스트 삭제
+
+    # 경로 세부정보 텍스트 생성
+    details = "최단 경로: {}\n".format(" -> ".join(path))
+    details += "총 이동 거리: {} km\n".format(distances['total_distance'])
+    details += "총 여행 시간: {} 분\n".format(distances['total_time'])
+
+    details_text.insert(tk.END, details)
 
 
-# 출발역과 도착역을 설정하여 경로 찾기
-def set_stations():
-    start = start_entry.get()
-    end = end_entry.get()
-    if start and end:
-        draw_shortest_path(start, end)
 
-# 리셋 버튼의 콜백 함수
-def reset_selection():
-    global clicked_stations
-    clicked_stations = []
-    
-    # 출발역과 도착역 입력 필드 비우기
-    start_entry.delete(0, tk.END)
-    end_entry.delete(0, tk.END)
-    
-    # 총 여행 시간 및 거리 초기화
-    time_label.config(text="총 여행 시간: 0 분")
-    
-    # 초기 맵 다시 그리기
-    draw_map()
-        
-        
-start_label = tk.Label(root, text="출발역:")
-start_label.pack(side=tk.LEFT, padx=5)
-start_entry = tk.Entry(root)
-start_entry.pack(side=tk.LEFT, padx=5)
-
-end_label = tk.Label(root, text="도착역:")
-end_label.pack(side=tk.LEFT, padx=5)
-end_entry = tk.Entry(root)
-end_entry.pack(side=tk.LEFT, padx=5)
-
-set_button = tk.Button(root, text="경로 찾기", command=set_stations)
-set_button.pack(side=tk.LEFT, padx=5)
-
-# 리셋 버튼 추가
-reset_button = tk.Button(root, text="리셋", command=reset_selection)
-reset_button.pack(side=tk.LEFT, padx=5)
-
-time_label = tk.Label(root, text="총 여행 시간: 0 분")
-time_label.pack(side=tk.LEFT, padx=5)
 
 draw_map()
 root.mainloop()
