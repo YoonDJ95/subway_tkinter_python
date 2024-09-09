@@ -1,6 +1,8 @@
 import pandas as pd
 import tkinter as tk
+from tkinter import IntVar, Frame, Checkbutton, RIGHT, Y, W
 import copy
+from PIL import Image, ImageTk
 
 # 엑셀 파일을 시트별로 불러오기
 excel_file = r'C:\\subway_tkinter\\subway_tkinter\\subway.xlsx'
@@ -13,8 +15,6 @@ transfer_df = sheets.get('환승역', pd.DataFrame())
 # 호선 정보 불러오기
 line_info_df = pd.read_excel(excel_file, sheet_name='호선정보')  # '호선정보' 시트에서 데이터 읽기
 line_info = line_info_df.set_index('지하철명').to_dict()['노선']
-
-
 
 # 그래프 초기화
 landscape = {}
@@ -76,6 +76,32 @@ for i in range(len(transfer_df)):
 root = tk.Tk()
 root.title("지하철 노선도")
 
+# 이미지 로드 및 크기 조정 함수
+def load_image(file_path, size):
+    image = Image.open(file_path)
+    image = image.resize(size, Image.LANCZOS)  # 이미지 크기 조정
+    return ImageTk.PhotoImage(image)
+
+# 이미지 로드
+start_image_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\start_495499.png"
+end_image_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\end_12366677.png"
+
+s_x_offset = 20
+x_offset = 11
+y_offset = 50
+
+try:
+    start_image = load_image(start_image_path, (50, 50))
+    end_image = load_image(end_image_path, (50, 50))
+except FileNotFoundError as e:
+    print(f"File not found: {e}")
+except Exception as e:
+    print(f"An error occurred: {e}")
+
+def add_image(x, y, image):
+    canvas.create_image(x, y, image=image, anchor=tk.NW, tags="icon")
+
+
 # 출발역과 도착역을 설정하여 경로 찾기
 def set_stations():
     start = start_entry.get()
@@ -87,6 +113,8 @@ def set_stations():
 def reset_selection():
     global clicked_stations
     clicked_stations = []
+    
+    canvas.delete("icon")
     
     # 출발역과 도착역 입력 필드 비우기
     start_entry.delete(0, tk.END)
@@ -139,7 +167,9 @@ canvas_height = 900
 canvas = tk.Canvas(root, width=canvas_width, height=canvas_height, bg='white')
 canvas.pack()
 
-clicked_stations = []
+
+
+clicked_stations = []  # 선택한 역을 저장할 리스트
 
 def on_click(event):
     x, y = event.x, event.y
@@ -149,13 +179,16 @@ def on_click(event):
             if len(clicked_stations) == 1:
                 start_entry.delete(0, tk.END)
                 start_entry.insert(0, station)
+                add_image(coord[0] - s_x_offset, coord[1] - y_offset, start_image)  # 조정된 위치에 출발점 이미지 추가
             elif len(clicked_stations) == 2:
                 end_entry.delete(0, tk.END)
                 end_entry.insert(0, station)
+                add_image(coord[0] - x_offset, coord[1] - y_offset, end_image)  # 조정된 위치에 도착점 이미지 추가
                 start = clicked_stations[0]
                 end = clicked_stations[1]
                 draw_shortest_path(start, end)
             return
+
 
 canvas.bind("<Button-1>", on_click)
 
@@ -185,7 +218,7 @@ def draw_map(hidden_lines=None, highlighted_stations=None):
                 station2 = data.iloc[i + 1]['지하철명']
                 x1, y1 = data.iloc[i]['X'], data.iloc[i]['Y']
                 x2, y2 = data.iloc[i + 1]['X'], data.iloc[i + 1]['Y']
-                canvas.create_line(x1, y1, x2, y2, fill=color, width=2, tags="line")
+                canvas.create_line(x1, y1, x2, y2, fill=color, width=4, tags="line")
 
     # 역 그리기
     for sheet_name, data in lines_df.items():
@@ -259,17 +292,25 @@ def find_shortest_path(start, end):
 
     return routing[end]['route'] + [end], routing[end]['shortestDist']
 
+def clear_canvas():
+    canvas.delete("facility")  # 태그가 "facility"인 아이콘만 삭제
+    canvas.delete("line")  # 모든 노선 삭제
+    canvas.delete("path")
+    canvas.delete("station")  # 모든 역 삭제
+    canvas.delete("station_name")  # 모든 역 삭제
+    canvas.delete("station_oval")  # 모든 역 삭제
+    canvas.delete("icon")
+
+
 # 경로 그리기
 def draw_shortest_path(start, end):
+    clear_canvas()
     path, distance = find_shortest_path(start, end)
     if not path:
         return
 
     # 선택한 경로 이외의 모든 요소 삭제
-    canvas.delete("line")  # 모든 노선 삭제
-    canvas.delete("station")  # 모든 역 삭제
-    canvas.delete("station_name")  # 모든 역 삭제
-    canvas.delete("station_oval")  # 모든 역 삭제
+    reset_checkboxes()  # 체크박스를 모두 언체크
 
     used_lines = set()
     # 경로 상의 노선만 사용하여 노선 리스트 작성
@@ -294,7 +335,7 @@ def draw_shortest_path(start, end):
                 if (station1 in path and station2 in path) or (station1 in path and station2 in path):
                     x1, y1 = data.iloc[i]['X'], data.iloc[i]['Y']
                     x2, y2 = data.iloc[i + 1]['X'], data.iloc[i + 1]['Y']
-                    canvas.create_line(x1, y1, x2, y2, fill=color, width=2, tags="path")
+                    canvas.create_line(x1, y1, x2, y2, fill=color, width=4, tags="path")
 
     # 경로 상의 역만 다시 표시
     for station in path:
@@ -308,7 +349,16 @@ def draw_shortest_path(start, end):
             canvas.create_oval(x-5, y-5, x+5, y+5, fill='red', tags="station")
         
         canvas.create_text(x, y-15, text=station, fill='red', tags="station")
+    
+    # 경로 상의 아이콘 다시 추가
+    for station in path:
+        x, y = station_positions[station]
         
+        if station == start:
+            add_image(x-s_x_offset, y-y_offset, start_image)
+        elif station == end:
+            add_image(x-x_offset, y-y_offset, end_image)
+
     # 거리와 시간 계산
     total_distance = 0  # 총 거리 (Km)
     total_time = 0  # 총 시간 (분)
@@ -357,6 +407,70 @@ def update_details(path, distances):
     details += "총 여행 시간: {} 분\n".format(distances['total_time'])
 
     details_text.insert(tk.END, details)
+    
+    
+# 체크박스 상태를 저장할 변수들
+facility_vars = {
+    '엘레베이터': IntVar(),
+    '휠체어리프트': IntVar(),
+    '환승주차장': IntVar(),
+    '자전거보관소': IntVar(),
+    '물품보관함': IntVar(),
+    '자동사진기': IntVar(),
+    '도시철도경찰대': IntVar(),
+    '섬식형': IntVar(),
+    '반대방향': IntVar()
+}
+
+# 시트에서 역 정보 읽기
+stations = []
+for sheet_name, data in sheets.items():
+    if '지하철명' in data.columns and 'X' in data.columns and 'Y' in data.columns:
+        for index, row in data.iterrows():
+            station_info = {
+                'name': row['지하철명'],
+                'x': row['X'],
+                'y': row['Y'],
+                'facilities': {
+                    '엘레베이터': row.get('엘레베이터', 0),
+                    '휠체어리프트': row.get('휠체어리프트', 0),
+                    '환승주차장': row.get('환승주차장', 0),
+                    '자전거보관소': row.get('자전거보관소', 0),
+                    '물품보관함': row.get('물품보관함', 0),
+                    '자동사진기': row.get('자동사진기', 0),
+                    '도시철도경찰대': row.get('도시철도경찰대', 0),
+                    '섬식형': row.get('섬식형', 0),
+                    '반대방향': row.get('반대방향', 0),
+                }
+            }
+            stations.append(station_info)
+
+# 아이콘을 표시할 함수
+def show_facilities():
+    canvas.delete("facility")  # 태그가 "facility"인 아이콘만 삭제
+    
+    for station in stations:
+        x, y = station['x'], station['y']
+        for facility, var in facility_vars.items():
+            if var.get() == 1 and station['facilities'][facility] == 1:
+                # 선택된 편의시설이 있는 경우 아이콘을 표시
+                canvas.create_oval(x-5, y-5, x+5, y+5, fill="blue", tags="facility")  # 태그 "facility" 추가
+                break  # 한 역에 여러 시설이 있어도 하나만 표시
+
+
+# 체크박스 패널 생성
+checkbox_frame = Frame(root)
+checkbox_frame.pack(side=RIGHT, fill=Y)
+
+# 체크박스 생성 함수
+for facility, var in facility_vars.items():
+    chk = Checkbutton(checkbox_frame, text=facility, variable=var, command=show_facilities)
+    chk.pack(anchor=W)
+    
+def reset_checkboxes():
+    # 모든 체크박스를 해제 (IntVar() 값을 0으로 설정)
+    for var in facility_vars.values():
+        var.set(0)
 
 
 
