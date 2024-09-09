@@ -1,7 +1,6 @@
 import pandas as pd
 import tkinter as tk
 import copy
-from collections import deque
 
 # 엑셀 파일을 시트별로 불러오기
 excel_file = r'C:\\py\\프로젝트\\subway.xlsx'
@@ -14,18 +13,20 @@ transfer_df = sheets.get('환승역', pd.DataFrame())
 # 그래프 초기화
 landscape = {}
 colors = {
-    '1호선': '#F66130',  # RGB(246, 97, 48)
-    '2호선': '#27AF1D',  # RGB(39, 175, 29)
-    '3호선': '#B58941',  # RGB(181, 137, 65)
-    '4호선': '#286CD3',  # RGB(40, 108, 211)
-    '동해선': '#4DCAF8',  # RGB(77, 202, 248)
-    '부김선': '#AF49CC'   # RGB(175, 73, 204)
+    '1호선': '#F66130',
+    '2호선': '#27AF1D',
+    '3호선': '#B58941',
+    '4호선': '#286CD3',
+    '동해선': '#4DCAF8',
+    '부김선': '#AF49CC',
+    '환승역': '#FFFFFF'
 }
-station_colors = {}  # 역별 색상 저장
+station_colors = {}
+line_mapping = {}  # 각 역의 노선 저장
 
 # 노선 데이터로 그래프 엣지 추가
 for sheet_name, data in lines_df.items():
-    color = colors.get(sheet_name, '#000000')  # 기본 색상 검정
+    color = colors.get(sheet_name, '#000000')
     for i in range(len(data) - 1):
         station1 = data.iloc[i]['지하철명']
         station2 = data.iloc[i + 1]['지하철명']
@@ -37,10 +38,24 @@ for sheet_name, data in lines_df.items():
         if station2 not in landscape:
             landscape[station2] = {}
 
-        landscape[station1][station2] = 2  # 정류장 간 거리는 2로 설정
-        landscape[station2][station1] = 2  # 양방향으로 설정
+        landscape[station1][station2] = 1
+        landscape[station2][station1] = 1
+        
+        # 노선 매핑 추가
+        if station1 not in line_mapping:
+            line_mapping[station1] = set()
+        if station2 not in line_mapping:
+            line_mapping[station2] = set()
+        line_mapping[station1].add(sheet_name)
+        line_mapping[station2].add(sheet_name)
+        
+        # 역에 대한 노선별 색상 저장 (여러 노선에 속한 역일 경우 첫 번째 노선 색상 사용)
+        if station1 not in station_colors:
+            station_colors[station1] = color
+        if station2 not in station_colors:
+            station_colors[station2] = color
 
-# 환승역 추가 (다중 그래프 엣지 추가)
+# 환승역 추가
 for i in range(len(transfer_df)):
     station1 = transfer_df.iloc[i]['노선1']
     station2 = transfer_df.iloc[i]['노선2']
@@ -48,20 +63,18 @@ for i in range(len(transfer_df)):
         landscape[station1] = {}
     if station2 not in landscape:
         landscape[station2] = {}
-    landscape[station1][station2] = 4  # 환승역은 거리 4로 설정
-    landscape[station2][station1] = 4  # 양방향으로 설정
+    landscape[station1][station2] = 2
+    landscape[station2][station1] = 2
 
 # tkinter 창 생성
 root = tk.Tk()
 root.title("지하철 노선도")
 
-# 캔버스 크기 설정
 canvas_width = 1680
 canvas_height = 900
 canvas = tk.Canvas(root, width=canvas_width, height=canvas_height, bg='white')
 canvas.pack()
 
-# 역 클릭 이벤트 처리 함수
 clicked_stations = []
 
 def on_click(event):
@@ -82,33 +95,76 @@ def on_click(event):
 
 canvas.bind("<Button-1>", on_click)
 
-# 역의 좌표와 이름을 저장
 station_positions = {}
 
-def draw_station(data, color):
-    for index, row in data.iterrows():
-        x, y = row['X'], row['Y']
-        name = row['지하철명']
-        station_positions[name] = (x, y)
-        canvas.create_oval(x-5, y-5, x+5, y+5, fill=color)
-        canvas.create_text(x, y-10, text=name, fill=color)
+# 노선과 역을 그리는 함수 (초기 화면 및 리셋 시 사용)
+def draw_map(hidden_lines=None, highlighted_stations=None):
+    canvas.delete("all")  # 기존 모든 요소 삭제
+    if hidden_lines is None:
+        hidden_lines = set()
 
-def draw_all_lines():
+    if highlighted_stations is None:
+        highlighted_stations = set()
+
+    # 환승역을 세트로 만듭니다.
+    transfer_stations = set(transfer_df['지하철명'].unique())
+
+    # 역을 표시한 세트를 만듭니다.
+    displayed_stations = set()
+
+    # 노선 그리기
     for sheet_name, data in lines_df.items():
-        color = colors[sheet_name]
-        for i in range(len(data) - 1):
-            station1 = data.iloc[i]['지하철명']
-            station2 = data.iloc[i + 1]['지하철명']
-            x1, y1 = data.iloc[i]['X'], data.iloc[i]['Y']
-            x2, y2 = data.iloc[i + 1]['X'], data.iloc[i + 1]['Y']
-            canvas.create_line(x1, y1, x2, y2, fill=color, width=2)
+        if sheet_name not in hidden_lines:
+            color = colors[sheet_name]  # 각 노선의 색상
+            for i in range(len(data) - 1):
+                station1 = data.iloc[i]['지하철명']
+                station2 = data.iloc[i + 1]['지하철명']
+                x1, y1 = data.iloc[i]['X'], data.iloc[i]['Y']
+                x2, y2 = data.iloc[i + 1]['X'], data.iloc[i + 1]['Y']
+                canvas.create_line(x1, y1, x2, y2, fill=color, width=2, tags="line")
 
-# 각 시트별로 역 그리기 및 모든 노선 연결
-for sheet_name, data in lines_df.items():
-    draw_station(data, colors[sheet_name])
-draw_all_lines()
+    # 역 그리기
+    for sheet_name, data in lines_df.items():
+        for index, row in data.iterrows():
+            x, y = row['X'], row['Y']
+            name = row['지하철명']
+            station_positions[name] = (x, y)
 
-# 다익스트라 알고리즘 적용 함수
+            # 역 아이콘 그리기
+            if name == '부전':
+                if name not in displayed_stations:
+                    canvas.create_oval(x-30, y-8, x+10, y+8, fill='white', outline='black', tags="station")
+                    displayed_stations.add(name)
+            elif name == '벡스코(시립미술관)':
+                if name not in displayed_stations:
+                    canvas.create_oval(x-8, y-20, x+8, y+10, fill='white', outline='black', tags="station")
+                    displayed_stations.add(name)
+            elif name in transfer_stations:
+                if name not in displayed_stations:
+                    canvas.create_oval(x-5, y-5, x+5, y+5, fill='white', outline='black', tags="station")
+                    displayed_stations.add(name)
+            else:
+                # 일반 역의 경우
+                station_color = station_colors.get(name, 'black') if name not in highlighted_stations else colors.get(sheet_name, 'black')
+                canvas.create_oval(x-5, y-5, x+5, y+5, fill=station_color, tags="station")
+                canvas.create_text(x, y-15, text=name, fill=station_color, tags="station_name")
+
+    # 역 이름을 선과 아이콘 위에 표시
+    name_positions = {}
+    for station, coord in station_positions.items():
+        x, y = coord
+        offset = 0
+        while (x, y) in name_positions.values():
+            offset += 20
+            y += offset
+        name_positions[station] = (x, y)
+        if station in transfer_stations:
+            canvas.create_text(x, y-15, text=station, fill='black', tags="station_name")
+        else:
+            station_color = station_colors.get(station, 'black') if station not in highlighted_stations else colors.get(sheet_name, 'black')
+            canvas.create_text(x, y-15, text=station, fill=station_color, tags="station_name")
+
+# 최단 경로 찾기 (다익스트라 알고리즘)
 def visitPlace(visit, routing):
     routing[visit]['visited'] = 1
     for togo, betweenDist in landscape[visit].items():
@@ -124,7 +180,6 @@ def find_shortest_path(start, end):
         routing[place] = {'shortestDist': float('inf'), 'route': [], 'visited': 0}
 
     routing[start]['shortestDist'] = 0
-
     visitPlace(start, routing)
 
     while True:
@@ -140,61 +195,113 @@ def find_shortest_path(start, end):
 
     return routing[end]['route'] + [end], routing[end]['shortestDist']
 
-# 최단 경로를 그리는 함수
+# 경로 그리기
 def draw_shortest_path(start, end):
     path, distance = find_shortest_path(start, end)
     if not path:
         return
 
-    canvas.delete("path")  # 기존 경로 삭제
-    canvas.delete("station")  # 기존 역 삭제
+    # 선택한 경로 이외의 모든 요소 삭제
+    canvas.delete("line")  # 모든 노선 삭제
+    canvas.delete("station")  # 모든 역 삭제
+    canvas.delete("station_name")  # 모든 역 삭제
+    canvas.delete("station_oval")  # 모든 역 삭제
 
-    # 노선과 역의 색상 업데이트
+    used_lines = set()
+    # 경로 상의 노선만 사용하여 노선 리스트 작성
+    for i in range(len(path) - 1):
+        station1 = path[i]
+        station2 = path[i + 1]
+        for sheet_name, data in lines_df.items():
+            for j in range(len(data) - 1):
+                line_station1 = data.iloc[j]['지하철명']
+                line_station2 = data.iloc[j + 1]['지하철명']
+                if (line_station1 == station1 and line_station2 == station2) or (line_station1 == station2 and line_station2 == station1):
+                    used_lines.add(sheet_name)
+                    break
+
+    # 경로 상의 노선만 다시 그리기
     for sheet_name, color in colors.items():
-        for i in range(len(lines_df[sheet_name]) - 1):
-            station1 = lines_df[sheet_name].iloc[i]['지하철명']
-            station2 = lines_df[sheet_name].iloc[i + 1]['지하철명']
-            if station1 in path or station2 in path:
-                x1, y1 = lines_df[sheet_name].iloc[i]['X'], lines_df[sheet_name].iloc[i]['Y']
-                x2, y2 = lines_df[sheet_name].iloc[i + 1]['X'], lines_df[sheet_name].iloc[i + 1]['Y']
-                canvas.create_line(x1, y1, x2, y2, fill=color, width=2, tags="path")
+        if sheet_name in used_lines:  # 경로에 포함된 노선만 그리기
+            data = lines_df[sheet_name]
+            for i in range(len(data) - 1):
+                station1 = data.iloc[i]['지하철명']
+                station2 = data.iloc[i + 1]['지하철명']
+                if (station1 in path and station2 in path) or (station1 in path and station2 in path):
+                    x1, y1 = data.iloc[i]['X'], data.iloc[i]['Y']
+                    x2, y2 = data.iloc[i + 1]['X'], data.iloc[i + 1]['Y']
+                    canvas.create_line(x1, y1, x2, y2, fill=color, width=2, tags="path")
 
-    # 역 표시
+    # 경로 상의 역만 다시 표시
     for station in path:
         x, y = station_positions[station]
-        canvas.create_oval(x-5, y-5, x+5, y+5, fill='red', tags="station")
-        canvas.create_text(x, y-10, text=station, fill='red', tags="station")
+        
+        if station == '부전':
+            canvas.create_oval(x-10, y-8, x+30, y+8, fill='red', outline='black', tags="station")
+        elif station == '벡스코(시립미술관)':
+            canvas.create_oval(x-8, y-10, x+8, y+20, fill='red', outline='black', tags="station")
+        else:
+            canvas.create_oval(x-5, y-5, x+5, y+5, fill='red', tags="station")
+        
+        canvas.create_text(x, y-15, text=station, fill='red', tags="station")
+        
 
     # 경로와 거리 출력
     print(f"최단 경로: {start} -> {end}는 {path}이며 거리: {distance}")
 
-    # 시간 계산
-    time = len(path) * 2  # 각 정류장마다 2분
+    # 거리와 시간 계산
+    total_distance = 0  # 총 거리 (Km)
+    total_time = 0  # 총 시간 (분)
+    prev_line = None
+
     for i in range(len(path) - 1):
-        if (path[i], path[i + 1]) in landscape:
-            if landscape[path[i]][path[i + 1]] == 4:
-                time += 2  # 환승역에서 추가 4분
+        station1 = path[i]
+        station2 = path[i + 1]
+        line1 = line_mapping[station1].intersection(line_mapping[station2]).pop()
 
-    time_label.config(text=f"총 여행 시간: {time} 분")
+        if prev_line is None or prev_line == line1:
+            # 동일 노선 이동: 2km, 2분씩 증가
+            total_distance += 2
+            total_time += 2
+        else:
+            # 환승: 4km, 4분 추가
+            total_distance += 6  # 기본 2km 이동 + 4km 환승 거리
+            total_time += 6  # 기본 2분 이동 + 4분 환승 시간
 
-# 출발역과 도착역 입력창 및 버튼
+        prev_line = line1
+
+    # 총 이동 거리 및 시간 출력
+    print(f"총 이동 거리: {total_distance} km")
+    print(f"총 이동 시간: {total_time} 분")
+
+    # UI에 시간 정보 업데이트
+    time_label.config(text=f"총 여행 시간: {total_time} 분, 총 이동 거리: {total_distance} km")
+
+
+
+# 출발역과 도착역을 설정하여 경로 찾기
 def set_stations():
     start = start_entry.get()
     end = end_entry.get()
     if start and end:
-        print(f"최단 경로를 계산합니다: {start} -> {end}")
         draw_shortest_path(start, end)
 
-# 선택 초기화 함수
+# 리셋 버튼의 콜백 함수
 def reset_selection():
     global clicked_stations
     clicked_stations = []
-    canvas.delete("path")
-    canvas.delete("station")
+    
+    # 출발역과 도착역 입력 필드 비우기
     start_entry.delete(0, tk.END)
     end_entry.delete(0, tk.END)
-    draw_all_lines()
-
+    
+    # 총 여행 시간 및 거리 초기화
+    time_label.config(text="총 여행 시간: 0 분")
+    
+    # 초기 맵 다시 그리기
+    draw_map()
+        
+        
 start_label = tk.Label(root, text="출발역:")
 start_label.pack(side=tk.LEFT, padx=5)
 start_entry = tk.Entry(root)
@@ -208,10 +315,12 @@ end_entry.pack(side=tk.LEFT, padx=5)
 set_button = tk.Button(root, text="경로 찾기", command=set_stations)
 set_button.pack(side=tk.LEFT, padx=5)
 
-reset_button = tk.Button(root, text="초기화", command=reset_selection)
+# 리셋 버튼 추가
+reset_button = tk.Button(root, text="리셋", command=reset_selection)
 reset_button.pack(side=tk.LEFT, padx=5)
 
 time_label = tk.Label(root, text="총 여행 시간: 0 분")
 time_label.pack(side=tk.LEFT, padx=5)
 
+draw_map()
 root.mainloop()
