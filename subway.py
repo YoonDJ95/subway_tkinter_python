@@ -100,7 +100,7 @@ try:
     transfer_image = load_image(trans_image_path, (20, 20))  # 환승역 이미지 로드
     transfer_image_bu = load_image(bu_image_path, (40, 20))  # 환승역 이미지 로드
     transfer_image_bex = load_image(bex_image_path, (20, 40))  # 환승역 이미지 로드
-    here_image = load_image(here_path, (30, 30))
+    here_image = load_image(here_path, (20, 20))
 except FileNotFoundError as e:
     print(f"File not found: {e}")
 except Exception as e:
@@ -173,6 +173,8 @@ time_label.pack(side=tk.LEFT, padx=5)
 # 호선별 버튼을 위한 프레임 설정
 line_buttons_frame = tk.Frame(controls_frame)
 line_buttons_frame.pack(side=tk.RIGHT, fill=tk.X, padx=5)
+line_label = tk.Label(controls_frame, text="노선정보 ▶ ", fg="blue")
+line_label.pack(side=tk.RIGHT, fill=tk.X, padx=5)
 
 # 호선별 및 편의시설 버튼을 위한 프레임 설정
 button_frame = tk.Frame(root)
@@ -181,6 +183,8 @@ button_frame.pack(side=tk.TOP, fill=tk.X)
 # 편의시설 버튼 프레임 설정
 category_btn_frame = tk.Frame(button_frame)
 category_btn_frame.pack(side=tk.RIGHT, fill=tk.X, padx=5)
+category_label = tk.Label(button_frame, text="편의시설 ▶ ",fg="blue")
+category_label.pack(side=tk.RIGHT, fill=tk.X, padx=5)
 
 canvas_width = 1680
 canvas_height = 900
