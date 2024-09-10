@@ -100,31 +100,41 @@ def load_image(file_path, size):
         return None
 
 # 이미지 로드
-start_image_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\start.png"
-end_image_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\end.png"
-trans_image_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\transportation.png"
-bu_image_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\transportation_bu.png"
-bex_image_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\transportation_bex.png"
-here_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\here.png"
-added_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\added.png"
+start_image_path = r"image/start.png"
+end_image_path = r"image/end.png"
+trans_image_path = r"image/transportation.png"
+bu_image_path = r"image/transportation_bu.png"
+bex_image_path = r"image/transportation_bex.png"
+here_path = r"image/here.png"
+added_path = r"image/added.png"
+search_path = r"image/검색.png"
+reset_path = r"image/reset.png"
 
 #출발, 도착 아이콘 위치
 s_x_offset = 20
-x_offset = 11
+x_offset = 5
 y_offset = 50
 
 # 캔버스 사이즈
-canvas_x = 1680
+canvas_x = 1600
 canvas_y = 900
 
+# 이미지 사이즈
+canvas_size = (canvas_x,canvas_y)
+start_end = (50,50)
+train_size = (20,20)
+search_reset = (50,50)
+
 # 이미지 사이즈 재가공
-start_image = load_image(start_image_path, (50, 50))
-end_image = load_image(end_image_path, (50, 50))
-transfer_image = load_image(trans_image_path, (20, 20))  # 환승역 이미지 로드
+start_image = load_image(start_image_path, start_end)
+end_image = load_image(end_image_path, start_end)
+transfer_image = load_image(trans_image_path, train_size)  # 환승역 이미지 로드
 transfer_image_bu = load_image(bu_image_path, (40, 20))  # 환승역 이미지 로드
 transfer_image_bex = load_image(bex_image_path, (20, 40))  # 환승역 이미지 로드
-here_image = load_image(here_path, (20, 20))
-added_image = load_image(added_path, (canvas_x, canvas_y))
+here_image = load_image(here_path, train_size)
+added_image = load_image(added_path, canvas_size)
+search_image = load_image(search_path, search_reset)
+reset_image = load_image(reset_path, search_reset)
 
 def add_image(x, y, image):
    canvas.create_image(x, y, image=image, anchor=tk.NW, tags="icon")
@@ -157,67 +167,72 @@ def reset_selection():
     
     # 총 여행 시간 및 거리 초기화
     time_label.config(text="총 여행 시간: 0 분")
-    details_text.delete(1.0, tk.END)  # 기존 텍스트 삭제
     # 초기 맵 다시 그리기
     draw_map()
 
 station_list = list(line_info.keys()) 
 
 # 프레임 시작 -----------------------------------------------------------------------
-### 상단 1번째 줄 ###
-# 입출력 및 버튼 배치
-controls_frame = tk.Frame(root, padx=10, pady=10)
-controls_frame.pack(side=tk.TOP, fill=tk.X)
+# 상단 프레임 1
+controls_frame = tk.Frame(root)
+controls_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
+center_frame = tk.Frame(controls_frame)
+center_frame.pack(side=tk.TOP, fill=tk.X)
 
+# 왼쪽 공백
+Empty_label = tk.Label(center_frame, text="\t\t\t\t\t\t\t\t")
+Empty_label.pack(side=tk.LEFT)
 # 출발지 입력창
-start_label = tk.Label(controls_frame, text="출발역:")
-start_label.pack(side=tk.LEFT, padx=5)
-start_entry = tk.Entry(controls_frame)
-start_entry.pack(side=tk.LEFT, padx=5)
-
+start_label = tk.Label(center_frame, text="출발역:", font=("Helvetica", 16))
+start_label.pack(side=tk.LEFT, padx=5, pady=10)
+start_entry = tk.Entry(center_frame, font=("Helvetica", 15))
+start_entry.pack(side=tk.LEFT, padx=5, pady=10)
+Empty_label = tk.Label(center_frame, text="\t")
+Empty_label.pack(side=tk.LEFT)
 # 도착지 입력창
-end_label = tk.Label(controls_frame, text="도착역:")
-end_label.pack(side=tk.LEFT, padx=5)
-end_entry = tk.Entry(controls_frame)
-end_entry.pack(side=tk.LEFT, padx=5)
+end_label = tk.Label(center_frame, text="도착역:", font=("Helvetica", 16))
+end_label.pack(side=tk.LEFT, padx=5, pady=10)
+end_entry = tk.Entry(center_frame, font=("Helvetica", 15))
+end_entry.pack(side=tk.LEFT, padx=5, pady=10)
 
-# 검색 버튼
-set_button = tk.Button(controls_frame, text="경로 찾기", command=set_stations)
-set_button.pack(side=tk.LEFT, padx=5)
+# 검색 버튼 (이미지로 대체)
+set_button = tk.Button(center_frame, image=search_image, command=set_stations)
+set_button.pack(side=tk.LEFT, padx=5, pady=20)
 
-# 리셋 버튼
-reset_button = tk.Button(controls_frame, text="리셋", command=reset_selection)
-reset_button.pack(side=tk.LEFT, padx=5)
+# 리셋 버튼 (이미지로 대체)
+reset_button = tk.Button(center_frame, image=reset_image, command=reset_selection)
+reset_button.pack(side=tk.LEFT, padx=5, pady=20)
 
 # 검색 자동완성 박스
-search_frame=tk.Frame(root)
-search_listbox = tk.Listbox(search_frame, yscrollcommand=lambda f, l: search_scrollbar.set(f, l))
+search_frame = tk.Frame(root)
+search_listbox = tk.Listbox(search_frame)
 search_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 search_scrollbar = tk.Scrollbar(search_frame, orient=tk.VERTICAL, command=search_listbox.yview)
 search_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+search_listbox.config(yscrollcommand=search_scrollbar.set)
 search_frame.pack_forget()
 
 start_entry.bind("<FocusIn>", lambda event: entry_focus_in(start_entry, search_listbox))
 end_entry.bind("<FocusIn>", lambda event: entry_focus_in(end_entry, search_listbox))
 
-# 호선별 버튼을 위한 프레임 설정
-line_buttons_frame = tk.Frame(controls_frame)
-line_buttons_frame.pack(side=tk.RIGHT, fill=tk.X, padx=5)
-line_label = tk.Label(controls_frame, text="노선정보 ▶ ", fg="blue")
-line_label.pack(side=tk.RIGHT, fill=tk.X, padx=5)
-
-### 상단 2번째 줄 ###
-# 호선별 및 편의시설 버튼을 위한 프레임 설정
+# 상단 프레임 2
 button_frame = tk.Frame(root)
 button_frame.pack(side=tk.TOP, fill=tk.X)
+
+# 호선별 버튼을 위한 프레임 설정
+line_label = tk.Label(button_frame, text="노선정보 ▶ ", fg="blue")
+line_label.pack(side=tk.LEFT, padx=5)
+line_buttons_frame = tk.Frame(button_frame)
+line_buttons_frame.pack(side=tk.LEFT, fill=tk.X, padx=5)
+
+
 # 편의시설 버튼 프레임 설정
 category_btn_frame = tk.Frame(button_frame)
 category_btn_frame.pack(side=tk.RIGHT, fill=tk.X, padx=5)
-category_label = tk.Label(button_frame, text="편의시설 ▶ ",fg="blue")
-category_label.pack(side=tk.RIGHT, fill=tk.X, padx=5)
+category_label = tk.Label(button_frame, text="편의시설 ▶ ", fg="blue")
+category_label.pack(side=tk.RIGHT, padx=5)
 
-### 우측프레임 ###
-# 경로 세부정보를 표시할 프레임
+# 우측 프레임
 info_frame = tk.Frame(root, padx=10, pady=10, bg='lightgrey', width=300)
 info_frame.pack(side=tk.RIGHT, fill=tk.Y)
 
@@ -599,21 +614,6 @@ def draw_shortest_path(start, end):
     # UI에 시간 정보 업데이트
     time_label.config(text=f"총 여행 시간: {total_time} 분, 총 이동 거리: {total_distance} km")
 
-    # 경로 세부정보 업데이트
-    update_details(path, {
-        'total_distance': total_distance,
-        'total_time': total_time,
-        'segment_distances': segment_distances
-    })
-
-# 경로 세부정보 업데이트 함수
-def update_details(path, distances):
-    details_text.delete(1.0, tk.END)  # 기존 텍스트 삭제
-    # 경로 세부정보 텍스트 생성
-    details = "최단 경로: {}\n".format(" -> ".join(path))
-    details += "총 이동 거리: {} km\n".format(distances['total_distance'])
-    details += "총 여행 시간: {} 분\n".format(distances['total_time'])
-    details_text.insert(tk.END, details)
       
 # 체크박스 상태를 저장할 변수들
 facility_vars = {
