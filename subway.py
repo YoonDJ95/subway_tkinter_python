@@ -1,8 +1,13 @@
+# Excel 읽기, 쓰기
 import pandas as pd
 import tkinter as tk
-from tkinter import IntVar, Frame, Checkbutton, RIGHT, Y, W
+from tkinter import *
 import copy
+# 이미지
 from PIL import Image, ImageTk
+# 자동완성 기능
+import ctypes   
+import re
 
 # 엑셀 파일을 시트별로 불러오기
 excel_file = r'C:\\subway_tkinter\\subway_tkinter\\subway.xlsx'
@@ -71,10 +76,15 @@ for i in range(len(transfer_df)):
         landscape[station2] = {}
     landscape[station1][station2] = 2
     landscape[station2][station1] = 2
+ 
+
 
 # tkinter 창 생성
 root = tk.Tk()
 root.title("지하철 노선도")
+
+imm32 = ctypes.WinDLL('imm32')
+
 
 # 이미지 로드 및 크기 조정 함수
 def load_image(file_path, size):
@@ -133,9 +143,10 @@ def reset_selection():
     details_text.delete(1.0, tk.END)  # 기존 텍스트 삭제
     # 초기 맵 다시 그리기
     draw_map()
-    
-    
-    
+
+
+station_list = list(line_info.keys())  
+print(station_list)
 
 # 우측 영역에 경로 세부정보를 표시할 프레임 추가
 info_frame = tk.Frame(root, padx=10, pady=10, bg='lightgrey', width=300)
@@ -156,10 +167,26 @@ start_label.pack(side=tk.LEFT, padx=5)
 start_entry = tk.Entry(controls_frame)
 start_entry.pack(side=tk.LEFT, padx=5)
 
+# 출발역 자동완성 리스트박스
+start_listbox = tk.Listbox(root)
+start_listbox.pack_forget()
+start_listbox.bind("<ButtonRelease-1>", lambda event: handle_click(event,start_entry, start_listbox))
+start_listbox.bind("<Motion>", lambda event: update_selection_on_mouse_move(event, start_listbox))
+
+start_entry.bind("<FocusIn>", lambda event: entry_focus_in(start_entry, start_listbox))
+
 end_label = tk.Label(controls_frame, text="도착역:")
 end_label.pack(side=tk.LEFT, padx=5)
 end_entry = tk.Entry(controls_frame)
 end_entry.pack(side=tk.LEFT, padx=5)
+
+end_entry.bind("<FocusIn>", lambda event: entry_focus_in(end_entry, end_listbox))
+
+# 도착역 자동완성 리스트박스
+end_listbox = tk.Listbox(root)
+end_listbox.pack_forget()
+end_listbox.bind("<ButtonRelease-1>", lambda event: handle_click(event,end_entry, end_listbox))
+end_listbox.bind("<Motion>", lambda event: update_selection_on_mouse_move(event, end_listbox))
 
 set_button = tk.Button(controls_frame, text="경로 찾기", command=set_stations)
 set_button.pack(side=tk.LEFT, padx=5)
@@ -210,10 +237,7 @@ def on_click(event):
                 end = clicked_stations[1]
                 draw_shortest_path(start, end)
             return
-
-
-canvas.bind("<Button-1>", on_click)
-
+        
 station_positions = {}
 
 # 노선과 역을 그리는 함수 (초기 화면 및 리셋 시 사용)
@@ -283,6 +307,128 @@ def draw_map(hidden_lines=None, highlighted_stations=None):
             station_color = station_colors.get(station, 'black') if station not in highlighted_stations else colors.get(sheet_name, 'black')
             canvas.create_text(x, y-15, text=station, fill=station_color, tags="station_name")
 
+
+# 공통 focus_in 함수
+def entry_focus_in(entry, listbox):
+    entry.bind("<KeyRelease>", lambda event: key_release_handler(event, entry, listbox))
+    
+    entry.bind("<KeyPress-Up>", lambda event: move_up_listbox(listbox, entry))
+    entry.bind("<KeyPress-Down>", lambda event: move_down_listbox(listbox, entry))
+    entry.bind("<Return>", lambda event: select_from_listbox(entry, listbox))
+
+    # FocusOut 시 리스트박스를 숨김
+    entry.bind("<FocusOut>", lambda event: listbox.place_forget())
+
+# IME에서 조합 중인 문자열을 가져오는 함수
+def get_ime_composition_string(hwnd):
+    hIMC = imm32.ImmGetContext(hwnd)
+    if not hIMC:
+        return None
+    buffer_size = imm32.ImmGetCompositionStringW(hIMC, 8, None, 0)
+    if buffer_size > 0:
+        buffer = ctypes.create_unicode_buffer(buffer_size // 2)
+        imm32.ImmGetCompositionStringW(hIMC, 8, buffer, buffer_size)
+        return buffer.value
+    return None
+
+def key_release_handler(event, entry, listbox):
+    input_text = entry.get()
+
+    if event.keysym == "BackSpace" and len(input_text) == 0:
+        listbox.place_forget()
+        return
+    
+    if len(input_text) == 0: 
+        hwnd = ctypes.windll.user32.GetForegroundWindow()
+        composition = get_ime_composition_string(hwnd)
+        if composition:
+            if re.fullmatch(r'[가-힣0-9]+', composition) and event.keysym not in ("Up", "Down", "Return"):
+                update_autocomplete_list(entry, listbox, station_list, composition)
+                adjust_listbox_size(entry, listbox)
+            else:
+                return
+    else:
+        if event.keysym not in ("Up", "Down", "Return"):
+            update_autocomplete_list(entry, listbox, station_list, input_text)
+
+def update_autocomplete_list(entry, listbox, station_list, search_text):
+    input_text = search_text.lower()
+    listbox.delete(0, tk.END)
+
+    if input_text:
+        starts_with = [station for station in station_list if station.lower().startswith(input_text)]
+        starts_with.sort(reverse=True)
+
+        contains = [station for station in station_list if input_text in station.lower() and not station.lower().startswith(input_text)]
+        contains.sort(reverse=True)
+
+        matching_stations = starts_with + contains
+
+        if matching_stations:
+            for station in matching_stations:
+                listbox.insert(tk.END, station)
+
+            # 리스트박스의 높이를 아이템 개수에 맞게 설정
+            max_height = 50
+            listbox_height = min(len(matching_stations), max_height)
+            listbox.config(height=listbox_height)
+
+            adjust_listbox_size(entry, listbox)
+            listbox.select_set(0)
+        else:
+            listbox.place_forget()
+    else:
+        listbox.place_forget()
+
+def move_up_listbox(listbox, entry):
+    current_selection = listbox.curselection()
+    if current_selection:
+        index = current_selection[0]
+        if index > 0:
+            listbox.select_clear(index)
+            listbox.select_set(index - 1)
+            listbox.activate(index - 1)
+    adjust_listbox_size(entry, listbox)
+
+def move_down_listbox(listbox, entry):
+    current_selection = listbox.curselection()
+    if current_selection:
+        index = current_selection[0]
+        if index < listbox.size() - 1:
+            listbox.select_clear(index)
+            listbox.select_set(index + 1)
+            listbox.activate(index + 1)
+    adjust_listbox_size(entry, listbox)
+
+def adjust_listbox_size(entry, listbox):
+    listbox_height = min(listbox.size(), 10)
+    listbox.config(height=listbox_height)
+    listbox.place(x=entry.winfo_x(), y=entry.winfo_y()+ listbox.winfo_height() )
+    listbox.lift()  # 리스트박스를 최상단으로 올리기
+
+# 리스트박스 항목을 선택한 후 리스트박스를 숨김
+def select_from_listbox(entry, listbox):
+    if listbox.size() > 0:
+        selected_station = listbox.get(tk.ACTIVE)
+        entry.delete(0, tk.END)
+        entry.insert(0, selected_station)
+        listbox.place_forget()
+
+# 마우스 클릭 시 리스트박스 항목을 선택한 후 리스트박스 숨김
+def handle_click(event, entry, listbox):
+    index = listbox.nearest(event.y)  # 마우스 클릭 위치의 항목 찾기
+    listbox.select_clear(0, tk.END)
+    listbox.select_set(index)
+    listbox.activate(index)
+    select_from_listbox(entry, listbox)
+
+# 마우스가 움직일 때 선택 항목을 바꿈
+def update_selection_on_mouse_move(event, listbox):
+    index = event.widget.nearest(event.y)
+    listbox.select_clear(0, tk.END)  # 기존 선택된 항목 클리어
+    listbox.select_set(index)  # 마우스가 가리키는 항목 선택
+    listbox.activate(index)
+
 # 최단 경로 찾기 (다익스트라 알고리즘)
 def visitPlace(visit, routing):
     routing[visit]['visited'] = 1
@@ -322,7 +468,6 @@ def clear_canvas():
     canvas.delete("station_name")  # 모든 역 삭제
     canvas.delete("station_oval")  # 모든 역 삭제
     canvas.delete("icon")
-
 
 # 경로 그리기
 def draw_shortest_path(start, end):
@@ -549,10 +694,8 @@ def show_facilities(selected_facility=None):
                     canvas.create_image(x, y-15, image=here_image, anchor=tk.CENTER, tags="facility")
 
 
-
+canvas.bind("<Button-1>", on_click)
 create_facility_buttons()  # 편의시설 버튼 생성
-    
-
 create_line_buttons()
 draw_map()
 root.mainloop()
