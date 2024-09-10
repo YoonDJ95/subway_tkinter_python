@@ -8,6 +8,7 @@ from PIL import Image, ImageTk
 # 자동완성 기능
 import ctypes   
 import re
+from datetime import datetime
 
 # 엑셀 파일을 시트별로 불러오기
 excel_file = r'C:\\subway_tkinter\\subway_tkinter\\subway.xlsx'
@@ -100,10 +101,14 @@ trans_image_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\transportation.p
 bu_image_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\transportation_bu.png"
 bex_image_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\transportation_bex.png"
 here_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\here.png"
+add_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\added.png"
 
 s_x_offset = 20
 x_offset = 11
 y_offset = 50
+
+canvas_x = 1680
+canvas_y = 900
 
 try:
     start_image = load_image(start_image_path, (50, 50))
@@ -112,6 +117,7 @@ try:
     transfer_image_bu = load_image(bu_image_path, (40, 20))  # 환승역 이미지 로드
     transfer_image_bex = load_image(bex_image_path, (20, 40))  # 환승역 이미지 로드
     here_image = load_image(here_path, (20, 20))
+    add_image = load_image(add_path, (canvas_x, canvas_y))
 except FileNotFoundError as e:
     print(f"File not found: {e}")
 except Exception as e:
@@ -120,7 +126,14 @@ except Exception as e:
 def add_image(x, y, image):
     canvas.create_image(x, y, image=image, anchor=tk.NW, tags="icon")
 
-
+def update_time():
+    # 현재 시간을 가져옴
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # 레이블에 현재 시간 업데이트
+    time_label.config(text=current_time)
+    # 1초마다 갱신
+    root.after(1000, update_time)
+    
 # 출발역과 도착역을 설정하여 경로 찾기
 def set_stations():
     start = start_entry.get()
@@ -145,9 +158,7 @@ def reset_selection():
     # 초기 맵 다시 그리기
     draw_map()
 
-
-station_list = list(line_info.keys())  
-print(station_list)
+station_list = list(line_info.keys()) 
 
 # 우측 영역에 경로 세부정보를 표시할 프레임 추가
 info_frame = tk.Frame(root, padx=10, pady=10, bg='lightgrey', width=300)
@@ -202,16 +213,21 @@ line_label.pack(side=tk.RIGHT, fill=tk.X, padx=5)
 button_frame = tk.Frame(root)
 button_frame.pack(side=tk.TOP, fill=tk.X)
 
+# 현재 시간을 표시할 레이블
+time_frame = tk.Frame(button_frame)
+time_frame.pack(side=tk.LEFT, fill=tk.X, padx=5)
+time_label = tk.Label(button_frame, font=('Helvetica', 16), fg='blue')
+time_label.pack(side=tk.LEFT, fill=tk.X, padx=5)
+
 # 편의시설 버튼 프레임 설정
 category_btn_frame = tk.Frame(button_frame)
 category_btn_frame.pack(side=tk.RIGHT, fill=tk.X, padx=5)
 category_label = tk.Label(button_frame, text="편의시설 ▶ ",fg="blue")
 category_label.pack(side=tk.RIGHT, fill=tk.X, padx=5)
 
-canvas_width = 1680
-canvas_height = 900
-canvas = tk.Canvas(root, width=canvas_width, height=canvas_height, bg='white')
+canvas = tk.Canvas(root, width=canvas_x, height=canvas_y)
 canvas.pack()
+
 
 clicked_stations = []  # 선택한 역을 저장할 리스트
 
@@ -242,7 +258,9 @@ def on_click(event):
             return
 
 def remove_images():
-    canvas.delete("icon")
+    # 여기에 출발점과 도착점 이미지를 제거하는 코드 추가
+    clear_canvas()
+    draw_map()
     pass
 
 station_positions = {}
@@ -703,8 +721,8 @@ def show_facilities(selected_facility=None):
                 # 선택된 시설 아이콘을 표시
                     canvas.create_image(x, y-15, image=here_image, anchor=tk.CENTER, tags="facility")
 
-
 canvas.bind("<Button-1>", on_click)
+update_time()
 create_facility_buttons()  # 편의시설 버튼 생성
 create_line_buttons()
 draw_map()
