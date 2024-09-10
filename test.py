@@ -1,23 +1,16 @@
-# Excel 읽기, 쓰기
 import pandas as pd
 import tkinter as tk
-from tkinter import *
+from tkinter import IntVar, Frame, Checkbutton, RIGHT, Y, W
 import copy
-# 이미지
 from PIL import Image, ImageTk
-# 자동완성 기능
-import ctypes   
-import re
-from datetime import datetime
 
 # 엑셀 파일을 시트별로 불러오기
-excel_file = r'C:\\subway_tkinter\\subway_tkinter\\subway.xlsx'
+excel_file = r'C:\\py\\subway_tkinter-main\\subway.xlsx'
 sheets = pd.read_excel(excel_file, sheet_name=None)
 
 # 노선과 환승역 시트 분리
 lines_df = {name: df for name, df in sheets.items() if name not in ['환승역','호선정보']}
 transfer_df = sheets.get('환승역', pd.DataFrame())
-transfer_stations = transfer_df['지하철명'].tolist()
 
 # 호선 정보 불러오기
 line_info_df = pd.read_excel(excel_file, sheet_name='호선정보')  # '호선정보' 시트에서 데이터 읽기
@@ -78,65 +71,45 @@ for i in range(len(transfer_df)):
         landscape[station2] = {}
     landscape[station1][station2] = 2
     landscape[station2][station1] = 2
- 
+
 # tkinter 창 생성
 root = tk.Tk()
 root.title("지하철 노선도")
 
-# 입력기 관련 라이브러리 불러옴
-imm32 = ctypes.WinDLL('imm32')
-
 # 이미지 로드 및 크기 조정 함수
 def load_image(file_path, size):
-    try:
-        image = Image.open(file_path)
-        image = image.resize(size, Image.LANCZOS)  # 이미지 크기 조정
-        return ImageTk.PhotoImage(image)
-    except FileNotFoundError:
-        print(f"File not found: {file_path}")
-        return None
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return None
+    image = Image.open(file_path)
+    image = image.resize(size, Image.LANCZOS)  # 이미지 크기 조정
+    return ImageTk.PhotoImage(image)
 
 # 이미지 로드
-start_image_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\start.png"
-end_image_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\end.png"
-trans_image_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\transportation.png"
-bu_image_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\transportation_bu.png"
-bex_image_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\transportation_bex.png"
-here_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\here.png"
-added_path = r"C:\\subway_tkinter\\subway_tkinter\\image\\added.png"
+start_image_path = r"C:\\py\\subway_tkinter-main\\image\\start_495499.png"
+end_image_path = r"C:\\py\\subway_tkinter-main\\image\\end_12366677.png"
+trans_image_path = r"C:\\py\\subway_tkinter-main\\image\\transportation.png"
+bu_image_path = r"C:\\py\\subway_tkinter-main\\image\\transportation_bu.png"
+bex_image_path = r"C:\\py\\subway_tkinter-main\\image\\transportation_bex.png"
+here_path = r"C:\\py\\subway_tkinter-main\\image\\here.png"
 
-#출발, 도착 아이콘 위치
 s_x_offset = 20
 x_offset = 11
 y_offset = 50
 
-# 캔버스 사이즈
-canvas_x = 1680
-canvas_y = 900
-
-# 이미지 사이즈 재가공
-start_image = load_image(start_image_path, (50, 50))
-end_image = load_image(end_image_path, (50, 50))
-transfer_image = load_image(trans_image_path, (20, 20))  # 환승역 이미지 로드
-transfer_image_bu = load_image(bu_image_path, (40, 20))  # 환승역 이미지 로드
-transfer_image_bex = load_image(bex_image_path, (20, 40))  # 환승역 이미지 로드
-here_image = load_image(here_path, (20, 20))
-added_image = load_image(added_path, (canvas_x, canvas_y))
+try:
+    start_image = load_image(start_image_path, (50, 50))
+    end_image = load_image(end_image_path, (50, 50))
+    transfer_image = load_image(trans_image_path, (20, 20))  # 환승역 이미지 로드
+    transfer_image_bu = load_image(bu_image_path, (40, 20))  # 환승역 이미지 로드
+    transfer_image_bex = load_image(bex_image_path, (20, 40))  # 환승역 이미지 로드
+    here_image = load_image(here_path, (30, 30))
+except FileNotFoundError as e:
+    print(f"File not found: {e}")
+except Exception as e:
+    print(f"An error occurred: {e}")
 
 def add_image(x, y, image):
-   canvas.create_image(x, y, image=image, anchor=tk.NW, tags="icon")
+    canvas.create_image(x, y, image=image, anchor=tk.NW, tags="icon")
 
-def update_time():
-    # 현재 시간을 가져옴
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    # 레이블에 현재 시간 업데이트
-    time_label.config(text=current_time)
-    # 1초마다 갱신
-    root.after(1000, update_time)
-    
+
 # 출발역과 도착역을 설정하여 경로 찾기
 def set_stations():
     start = start_entry.get()
@@ -160,64 +133,11 @@ def reset_selection():
     details_text.delete(1.0, tk.END)  # 기존 텍스트 삭제
     # 초기 맵 다시 그리기
     draw_map()
+    
+    
+    
 
-station_list = list(line_info.keys()) 
-
-# 프레임 시작 -----------------------------------------------------------------------
-### 상단 1번째 줄 ###
-# 입출력 및 버튼 배치
-controls_frame = tk.Frame(root, padx=10, pady=10)
-controls_frame.pack(side=tk.TOP, fill=tk.X)
-
-# 출발지 입력창
-start_label = tk.Label(controls_frame, text="출발역:")
-start_label.pack(side=tk.LEFT, padx=5)
-start_entry = tk.Entry(controls_frame)
-start_entry.pack(side=tk.LEFT, padx=5)
-
-# 도착지 입력창
-end_label = tk.Label(controls_frame, text="도착역:")
-end_label.pack(side=tk.LEFT, padx=5)
-end_entry = tk.Entry(controls_frame)
-end_entry.pack(side=tk.LEFT, padx=5)
-
-# 검색 버튼
-set_button = tk.Button(controls_frame, text="경로 찾기", command=set_stations)
-set_button.pack(side=tk.LEFT, padx=5)
-
-# 리셋 버튼
-reset_button = tk.Button(controls_frame, text="리셋", command=reset_selection)
-reset_button.pack(side=tk.LEFT, padx=5)
-
-# 검색 자동완성 박스
-search_frame=tk.Frame(root)
-search_listbox = tk.Listbox(search_frame, yscrollcommand=lambda f, l: search_scrollbar.set(f, l))
-search_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-search_scrollbar = tk.Scrollbar(search_frame, orient=tk.VERTICAL, command=search_listbox.yview)
-search_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-search_frame.pack_forget()
-
-start_entry.bind("<FocusIn>", lambda event: entry_focus_in(start_entry, search_listbox))
-end_entry.bind("<FocusIn>", lambda event: entry_focus_in(end_entry, search_listbox))
-
-# 호선별 버튼을 위한 프레임 설정
-line_buttons_frame = tk.Frame(controls_frame)
-line_buttons_frame.pack(side=tk.RIGHT, fill=tk.X, padx=5)
-line_label = tk.Label(controls_frame, text="노선정보 ▶ ", fg="blue")
-line_label.pack(side=tk.RIGHT, fill=tk.X, padx=5)
-
-### 상단 2번째 줄 ###
-# 호선별 및 편의시설 버튼을 위한 프레임 설정
-button_frame = tk.Frame(root)
-button_frame.pack(side=tk.TOP, fill=tk.X)
-# 편의시설 버튼 프레임 설정
-category_btn_frame = tk.Frame(button_frame)
-category_btn_frame.pack(side=tk.RIGHT, fill=tk.X, padx=5)
-category_label = tk.Label(button_frame, text="편의시설 ▶ ",fg="blue")
-category_label.pack(side=tk.RIGHT, fill=tk.X, padx=5)
-
-### 우측프레임 ###
-# 경로 세부정보를 표시할 프레임
+# 우측 영역에 경로 세부정보를 표시할 프레임 추가
 info_frame = tk.Frame(root, padx=10, pady=10, bg='lightgrey', width=300)
 info_frame.pack(side=tk.RIGHT, fill=tk.Y)
 
@@ -227,28 +147,45 @@ details_label.pack(pady=(0, 10))
 details_text = tk.Text(info_frame, width=40, height=20, wrap=tk.WORD, padx=5, pady=5)
 details_text.pack(expand=True)
 
-### 하단프레임 ###
-bottom_frame= tk.Frame(root)
-bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=5)
-# 현재 시간을 표시할 레이블
-realtime_label = tk.Label(bottom_frame, font=('Helvetica', 16), fg='blue')
-realtime_label.pack(side=tk.LEFT, fill=tk.X, padx=5)
-# 총 주행시간
-time_label = tk.Label(bottom_frame, text="총 여행 시간: 0 분")
+# 입출력 및 버튼 배치
+controls_frame = tk.Frame(root, padx=10, pady=10)
+controls_frame.pack(side=tk.TOP, fill=tk.X)
+
+start_label = tk.Label(controls_frame, text="출발역:")
+start_label.pack(side=tk.LEFT, padx=5)
+start_entry = tk.Entry(controls_frame)
+start_entry.pack(side=tk.LEFT, padx=5)
+
+end_label = tk.Label(controls_frame, text="도착역:")
+end_label.pack(side=tk.LEFT, padx=5)
+end_entry = tk.Entry(controls_frame)
+end_entry.pack(side=tk.LEFT, padx=5)
+
+set_button = tk.Button(controls_frame, text="경로 찾기", command=set_stations)
+set_button.pack(side=tk.LEFT, padx=5)
+
+reset_button = tk.Button(controls_frame, text="리셋", command=reset_selection)
+reset_button.pack(side=tk.LEFT, padx=5)
+
+time_label = tk.Label(controls_frame, text="총 여행 시간: 0 분")
 time_label.pack(side=tk.LEFT, padx=5)
 
-# 캔버스 생성
-canvas = tk.Canvas(root, width=canvas_x, height=canvas_y)
-canvas.pack(fill=tk.BOTH, expand=True)
-# 프레임 끝-----------------------------------------------------------------------
+# 호선별 버튼을 위한 프레임 설정
+line_buttons_frame = tk.Frame(controls_frame)
+line_buttons_frame.pack(side=tk.RIGHT, fill=tk.X, padx=5)
 
-# 이미지 로드 및 추가
-if added_image:
-    canvas.create_image(0, 0, anchor=tk.NW, image=added_image)
-    canvas.image = added_image  # 이미지 참조 유지
-    print("Image loaded and added to canvas.")
-else:
-    print("Failed to load image.")
+# 호선별 및 편의시설 버튼을 위한 프레임 설정
+button_frame = tk.Frame(root)
+button_frame.pack(side=tk.TOP, fill=tk.X)
+
+# 편의시설 버튼 프레임 설정
+category_btn_frame = tk.Frame(button_frame)
+category_btn_frame.pack(side=tk.RIGHT, fill=tk.X, padx=5)
+
+canvas_width = 1680
+canvas_height = 900
+canvas = tk.Canvas(root, width=canvas_width, height=canvas_height, bg='white')
+canvas.pack()
 
 clicked_stations = []  # 선택한 역을 저장할 리스트
 
@@ -256,19 +193,11 @@ def on_click(event):
     x, y = event.x, event.y
     for station, coord in station_positions.items():
         if abs(x - coord[0]) < 10 and abs(y - coord[1]) < 10:
-            if len(clicked_stations) == 2:
-                # 초기화 상태로 돌아가고, 이전에 추가한 이미지를 제거
-                remove_images()  # 이전에 추가한 출발점과 도착점 이미지를 제거하는 함수
-                clicked_stations.clear()  # 클릭한 역 목록을 초기화
-                start_entry.delete(0, tk.END)
-                end_entry.delete(0, tk.END)
-            
             clicked_stations.append(station)
-            
             if len(clicked_stations) == 1:
                 start_entry.delete(0, tk.END)
                 start_entry.insert(0, station)
-                add_image(coord[0] - x_offset, coord[1] - y_offset, start_image)  # 조정된 위치에 출발점 이미지 추가
+                add_image(coord[0] - s_x_offset, coord[1] - y_offset, start_image)  # 조정된 위치에 출발점 이미지 추가
             elif len(clicked_stations) == 2:
                 end_entry.delete(0, tk.END)
                 end_entry.insert(0, station)
@@ -278,17 +207,14 @@ def on_click(event):
                 draw_shortest_path(start, end)
             return
 
-def remove_images():
-    # 여기에 출발점과 도착점 이미지를 제거하는 코드 추가
-    clear_canvas()
-    draw_map()
-    pass
+
+canvas.bind("<Button-1>", on_click)
 
 station_positions = {}
 
 # 노선과 역을 그리는 함수 (초기 화면 및 리셋 시 사용)
 def draw_map(hidden_lines=None, highlighted_stations=None):
-    clear_canvas()
+    canvas.delete("all")  # 기존 모든 요소 삭제
     if hidden_lines is None:
         hidden_lines = set()
 
@@ -353,127 +279,6 @@ def draw_map(hidden_lines=None, highlighted_stations=None):
             station_color = station_colors.get(station, 'black') if station not in highlighted_stations else colors.get(sheet_name, 'black')
             canvas.create_text(x, y-15, text=station, fill=station_color, tags="station_name")
 
-# 엔트리 활성화시
-def entry_focus_in(entry, listbox):
-    entry.bind("<KeyRelease>", lambda event: key_release_handler(event, entry, listbox))
-    
-    entry.bind("<KeyPress-Up>", lambda event: move_listbox_selection(search_listbox, entry, -1))
-    entry.bind("<KeyPress-Down>", lambda event: move_listbox_selection(search_listbox, entry, 1))
-    entry.bind("<Return>", lambda event: select_from_listbox(entry, listbox))
-    
-    search_listbox.bind("<Motion>", lambda event: update_selection_on_mouse_move(event, listbox))
-    search_listbox.bind("<ButtonRelease-1>", lambda event: handle_click(event,entry, listbox))
-
-    entry.bind("<FocusOut>", lambda event: search_frame.place_forget())
-
-# IME에서 조합 중인 문자열을 가져오는 함수
-def get_ime_composition_string(hwnd):
-    hIMC = imm32.ImmGetContext(hwnd)
-    if not hIMC:
-        return None
-    buffer_size = imm32.ImmGetCompositionStringW(hIMC, 8, None, 0)
-    if buffer_size > 0:
-        buffer = ctypes.create_unicode_buffer(buffer_size // 2)
-        imm32.ImmGetCompositionStringW(hIMC, 8, buffer, buffer_size)
-        return buffer.value
-    return None
-
-def key_release_handler(event, entry, listbox):
-    input_text = entry.get()
-
-    if event.keysym == "BackSpace" and len(input_text) == 0:
-        search_frame.place_forget()
-        return
-    
-    if len(input_text) == 0: 
-        hwnd = ctypes.windll.user32.GetForegroundWindow()
-        composition = get_ime_composition_string(hwnd)
-        if composition:
-            if re.fullmatch(r'[가-힣0-9]+', composition) and event.keysym not in ("Up", "Down", "Return"):
-                update_autocomplete_list(entry, listbox, station_list, composition)
-                adjust_listbox_size(entry, listbox)
-            else:
-                return
-    else:
-        if event.keysym not in ("Up", "Down", "Return"):
-            update_autocomplete_list(entry, listbox, station_list, input_text)
-
-def update_autocomplete_list(entry, listbox, station_list, search_text):
-    input_text = search_text.lower()
-    listbox.delete(0, tk.END)
-
-    if input_text:
-        starts_with = [station for station in station_list if station.lower().startswith(input_text)]
-        starts_with.sort()
-
-        contains = [station for station in station_list if input_text in station.lower() and not station.lower().startswith(input_text)]
-        contains.sort()
-
-        matching_stations = starts_with + contains
-
-        if matching_stations:
-            for station in matching_stations:
-                listbox.insert(tk.END, station)
-
-            max_height = 50
-            listbox_height = min(len(matching_stations), max_height)
-            listbox.config(height=listbox_height)
-
-            adjust_listbox_size(entry, listbox)
-            listbox.select_set(0)
-        else:
-            search_frame.place_forget()
-    else:
-        search_frame.place_forget()
-
-def move_listbox_selection(listbox, entry, direction):
-    current_selection = listbox.curselection()
-    if current_selection:
-        index = current_selection[0]
-        new_index = index + direction
-        
-        if 0 <= new_index < listbox.size():
-            listbox.select_clear(index)
-            listbox.select_set(new_index)
-            listbox.activate(new_index)
-            listbox.see(new_index)
-    
-    adjust_listbox_size(entry, listbox)
-
-# 리스트박스 크기 자동 조절 및 자동 배치
-def adjust_listbox_size(entry, listbox):
-    listbox_height = min(listbox.size(), 10)
-    listbox.config(height=listbox_height)
-    search_frame.place(x=entry.winfo_x(), y=entry.winfo_y()+ entry.winfo_height() )
-    search_frame.lift()  # 리스트박스를 최상단으로 올리기
-
-# 검색 방향키 선택시
-def select_from_listbox(entry, listbox):
-    if listbox.size() > 0:
-        selected_station = listbox.get(tk.ACTIVE)
-        entry.delete(0, tk.END)
-        entry.insert(0, selected_station)
-        search_frame.place_forget()
-
-select_listbox_item_on_mouse_move = None
-
-# 검색 마우스 클릭 이벤트
-def handle_click(event, entry, listbox):
-    global select_listbox_item_on_mouse_move
-    if select_listbox_item_on_mouse_move is not None:
-        entry.delete(0, tk.END)
-        entry.insert(0, select_listbox_item_on_mouse_move)
-        search_frame.place_forget()
-
-# 마우스가 움직일 때 선택 항목을 바꿈
-def update_selection_on_mouse_move(event, listbox):
-    global select_listbox_item_on_mouse_move
-    index = event.widget.nearest(event.y)
-    listbox.select_clear(0, tk.END)
-    listbox.select_set(index)
-    listbox.activate(index)
-    select_listbox_item_on_mouse_move=listbox.get(index)
-
 # 최단 경로 찾기 (다익스트라 알고리즘)
 def visitPlace(visit, routing):
     routing[visit]['visited'] = 1
@@ -514,6 +319,7 @@ def clear_canvas():
     canvas.delete("station_oval")  # 모든 역 삭제
     canvas.delete("icon")
 
+
 # 경로 그리기
 def draw_shortest_path(start, end):
     clear_canvas()
@@ -550,13 +356,10 @@ def draw_shortest_path(start, end):
     for station in path:
         x, y = station_positions[station]
         
-        if station in transfer_stations:
-            if station == '부전':
-                canvas.create_image(x+10, y, image=transfer_image_bu, anchor=tk.CENTER, tags="station")
-            elif station == '벡스코(시립미술관)':
-                canvas.create_image(x, y+10, image=transfer_image_bex, anchor=tk.CENTER, tags="station")
-            else:
-                canvas.create_image(x, y, image=transfer_image, anchor=tk.CENTER, tags="station")
+        if station == '부전':
+            canvas.create_image(x+10, y, image=transfer_image_bu, anchor=tk.CENTER, tags="station")
+        elif station == '벡스코(시립미술관)':
+            canvas.create_image(x, y+10, image=transfer_image_bex, anchor=tk.CENTER, tags="station")
         else:
             canvas.create_oval(x-5, y-5, x+5, y+5, fill='red', tags="station")
         
@@ -564,7 +367,8 @@ def draw_shortest_path(start, end):
     
     # 경로 상의 아이콘 다시 추가
     for station in path:
-        x, y = station_positions[station]      
+        x, y = station_positions[station]
+        
         if station == start:
             add_image(x-s_x_offset, y-y_offset, start_image)
         elif station == end:
@@ -580,6 +384,7 @@ def draw_shortest_path(start, end):
         station1 = path[i]
         station2 = path[i + 1]
         line1 = line_mapping[station1].intersection(line_mapping[station2]).pop()
+
         if prev_line is None or prev_line == line1:
             # 동일 노선 이동: 2km, 2분씩 증가
             segment_distances.append(2)
@@ -590,6 +395,7 @@ def draw_shortest_path(start, end):
             segment_distances.append(6)  # 기본 2km 이동 + 4km 환승 거리
             total_distance += 6  # 기본 2km 이동 + 4km 환승 거리
             total_time += 6  # 기본 2분 이동 + 4분 환승 시간
+
         prev_line = line1
 
     # 총 이동 거리 및 시간 출력
@@ -609,12 +415,15 @@ def draw_shortest_path(start, end):
 # 경로 세부정보 업데이트 함수
 def update_details(path, distances):
     details_text.delete(1.0, tk.END)  # 기존 텍스트 삭제
+
     # 경로 세부정보 텍스트 생성
     details = "최단 경로: {}\n".format(" -> ".join(path))
     details += "총 이동 거리: {} km\n".format(distances['total_distance'])
     details += "총 여행 시간: {} 분\n".format(distances['total_time'])
+
     details_text.insert(tk.END, details)
-      
+    
+    
 # 체크박스 상태를 저장할 변수들
 facility_vars = {
     '엘레베이터': IntVar(),
@@ -650,15 +459,15 @@ for sheet_name, data in sheets.items():
                 }
             }
             stations.append(station_info)
-
+#---------------------------------------------------------            
 line_images_paths = {
-    '1호선': r"image/1호선.png",
-    '2호선': r"image/2호선.png",
-    '3호선': r"image/3호선.png",
-    '4호선': r"image/4호선.png",
-    '동해선': r"image/동해선.png",
-    '부김선': r"image/부김선.png",
-    '전체역': r"image/전체 역 보기.png"
+    '1호선': r"subway_tkinter-main/image/1호선.png",
+    '2호선': r"subway_tkinter-main/image/2호선.png",
+    '3호선': r"subway_tkinter-main/image/3호선.png",
+    '4호선': r"subway_tkinter-main/image/4호선.png",
+    '동해선': r"subway_tkinter-main/image/동해선.png",
+    '부김선': r"subway_tkinter-main/image/부김선.png",
+    '전체역': r"subway_tkinter-main/image/전체 역 보기.png"
 }
 
 line_images = {}
@@ -676,6 +485,10 @@ for line, img in line_images.items():
         button.bind("<Button-1>", lambda e: draw_map())
     else:
         button.bind("<Button-1>", lambda e, l=line: show_line(l))
+    
+
+    
+#---------------------------------------------------------
 
 def show_line(line_name):
     clear_canvas()  # 기존 노선 및 역 삭제
@@ -712,7 +525,36 @@ def show_line(line_name):
             canvas.create_text(x, y-15, text=name, fill=color, tags="station_name")
     else:
         draw_map()  # 선택된 노선이 없으면 모든 노선 그리기
-        
+#----------------------------------------------------------        
+# def create_line_buttons():
+#     # 각 노선별 버튼 생성
+#     for line_name in colors.keys():
+#         if line_name != '환승역':  # 환승역을 제외하고 버튼 생성
+#             color = colors[line_name]
+#             button = tk.Button(line_buttons_frame, bg=color, text=line_name, command=lambda ln=line_name: show_line(ln))
+#             button.pack(side=tk.LEFT, padx=2, pady=2)
+    
+#     # "전체 역 보기" 버튼 추가
+#     show_all_button = tk.Button(line_buttons_frame, text="전체 역 보기", command=draw_map)
+#     show_all_button.pack(side=tk.LEFT, padx=5, pady=2)
+
+
+    
+# def create_facility_buttons():
+#     """
+#     편의시설 버튼을 생성하고 프레임에 추가합니다.
+#     """
+#     global facility_vars  # 전역 변수로 facility_vars를 사용
+#     facility_vars = {}  # facility_vars 초기화
+
+#     # 편의시설 버튼 생성
+#     for facility in ['엘레베이터', '휠체어리프트', '환승주차장', '자전거보관소', '물품보관함', '자동사진기', '도시철도경찰대', '섬식형', '반대방향']:
+#         var = tk.IntVar()  # 체크박스의 상태를 관리할 변수
+#         facility_vars[facility] = var
+#         button = tk.Button(category_btn_frame, text=facility, command=lambda f=facility: show_facilities(f))
+#         button.pack(side=tk.LEFT, padx=2, pady=2)   
+
+#-------------------------------------------------------------------------------
 
 def show_facilities(selected_facility=None):
     """
@@ -734,6 +576,7 @@ def show_facilities(selected_facility=None):
                 # 선택된 시설 아이콘을 표시
                     canvas.create_image(x, y-15, image=here_image, anchor=tk.CENTER, tags="facility")
 
+#------------------------------------------------------
 def show_tooltip(event, text):
     tooltip = tk.Toplevel()  # 툴팁을 새로운 작은 창으로 만듦
     tooltip.wm_overrideredirect(True)  # 창 테두리 없이 만듦
@@ -758,15 +601,15 @@ def create_facility_buttons():
 
     # 편의시설에 해당하는 이미지 딕셔너리 예시
     facility_images_paths = {
-        '엘레베이터': r"image/엘리베이터.png",
-        '휠체어리프트': r"image/휠체어리프트.png",
-        '환승주차장': r"image/환승주차장.png",
-        '자전거보관소': r"image/자전거 보관소.png",
-        '물품보관함': r"image/물품보관함.png",
-        '자동사진기': r"image/자동사진기.png",
-        '도시철도경찰대': r"image/도시철도경찰대.png",
-        '섬식형': r"image/섬식형.png",
-        '반대방향': r"image/반대방향.png"
+        '엘레베이터': r"subway_tkinter-main/image/엘리베이터.png",
+        '휠체어리프트': r"subway_tkinter-main/image/휠체어리프트.png",
+        '환승주차장': r"subway_tkinter-main/image/환승주차장.png",
+        '자전거보관소': r"subway_tkinter-main/image/자전거 보관소.png",
+        '물품보관함': r"subway_tkinter-main/image/물품보관함.png",
+        '자동사진기': r"subway_tkinter-main/image/자동사진기.png",
+        '도시철도경찰대': r"subway_tkinter-main/image/도시철도경찰대.png",
+        '섬식형': r"subway_tkinter-main/image/섬식형.png",
+        '반대방향': r"subway_tkinter-main/image/반대방향.png"
     }
     facility_images = {}
     for facility, path in facility_images_paths.items():
@@ -787,8 +630,10 @@ def create_facility_buttons():
         button.bind("<Enter>", lambda e, f=facility: show_tooltip(e, f))
         button.bind("<Leave>", hide_tooltip)
 
-canvas.bind("<Button-1>", on_click)
-update_time()
 create_facility_buttons()  # 편의시설 버튼 생성
+    
+
+# create_line_buttons()
+#----------------------------------------------------------------------------
 draw_map()
 root.mainloop()
