@@ -168,26 +168,10 @@ start_label.pack(side=tk.LEFT, padx=5)
 start_entry = tk.Entry(controls_frame)
 start_entry.pack(side=tk.LEFT, padx=5)
 
-# 출발역 자동완성 리스트박스
-start_listbox = tk.Listbox(root)
-start_listbox.pack_forget()
-start_listbox.bind("<ButtonRelease-1>", lambda event: handle_click(event,start_entry, start_listbox))
-start_listbox.bind("<Motion>", lambda event: update_selection_on_mouse_move(event, start_listbox))
-
-start_entry.bind("<FocusIn>", lambda event: entry_focus_in(start_entry, start_listbox))
-
 end_label = tk.Label(controls_frame, text="도착역:")
 end_label.pack(side=tk.LEFT, padx=5)
 end_entry = tk.Entry(controls_frame)
 end_entry.pack(side=tk.LEFT, padx=5)
-
-end_entry.bind("<FocusIn>", lambda event: entry_focus_in(end_entry, end_listbox))
-
-# 도착역 자동완성 리스트박스
-end_listbox = tk.Listbox(root)
-end_listbox.pack_forget()
-end_listbox.bind("<ButtonRelease-1>", lambda event: handle_click(event,end_entry, end_listbox))
-end_listbox.bind("<Motion>", lambda event: update_selection_on_mouse_move(event, end_listbox))
 
 set_button = tk.Button(controls_frame, text="경로 찾기", command=set_stations)
 set_button.pack(side=tk.LEFT, padx=5)
@@ -197,6 +181,16 @@ reset_button.pack(side=tk.LEFT, padx=5)
 
 time_label = tk.Label(controls_frame, text="총 여행 시간: 0 분")
 time_label.pack(side=tk.LEFT, padx=5)
+
+search_frame=tk.Frame(root)
+search_listbox = tk.Listbox(search_frame, yscrollcommand=lambda f, l: search_scrollbar.set(f, l))
+search_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+search_scrollbar = tk.Scrollbar(search_frame, orient=tk.VERTICAL, command=search_listbox.yview)
+search_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+search_frame.pack_forget()
+
+start_entry.bind("<FocusIn>", lambda event: entry_focus_in(start_entry, search_listbox))
+end_entry.bind("<FocusIn>", lambda event: entry_focus_in(end_entry, search_listbox))
 
 # 호선별 버튼을 위한 프레임 설정
 line_buttons_frame = tk.Frame(controls_frame)
@@ -225,11 +219,19 @@ def on_click(event):
     x, y = event.x, event.y
     for station, coord in station_positions.items():
         if abs(x - coord[0]) < 10 and abs(y - coord[1]) < 10:
+            if len(clicked_stations) == 2:
+                # 초기화 상태로 돌아가고, 이전에 추가한 이미지를 제거
+                remove_images()  # 이전에 추가한 출발점과 도착점 이미지를 제거하는 함수
+                clicked_stations.clear()  # 클릭한 역 목록을 초기화
+                start_entry.delete(0, tk.END)
+                end_entry.delete(0, tk.END)
+            
             clicked_stations.append(station)
+            
             if len(clicked_stations) == 1:
                 start_entry.delete(0, tk.END)
                 start_entry.insert(0, station)
-                add_image(coord[0] - s_x_offset, coord[1] - y_offset, start_image)  # 조정된 위치에 출발점 이미지 추가
+                add_image(coord[0] - x_offset, coord[1] - y_offset, start_image)  # 조정된 위치에 출발점 이미지 추가
             elif len(clicked_stations) == 2:
                 end_entry.delete(0, tk.END)
                 end_entry.insert(0, station)
@@ -238,7 +240,11 @@ def on_click(event):
                 end = clicked_stations[1]
                 draw_shortest_path(start, end)
             return
-        
+
+def remove_images():
+    canvas.delete("icon")
+    pass
+
 station_positions = {}
 
 # 노선과 역을 그리는 함수 (초기 화면 및 리셋 시 사용)
@@ -309,16 +315,18 @@ def draw_map(hidden_lines=None, highlighted_stations=None):
             canvas.create_text(x, y-15, text=station, fill=station_color, tags="station_name")
 
 
-# 공통 focus_in 함수
+# 엔트리 활성화시
 def entry_focus_in(entry, listbox):
     entry.bind("<KeyRelease>", lambda event: key_release_handler(event, entry, listbox))
     
-    entry.bind("<KeyPress-Up>", lambda event: move_up_listbox(listbox, entry))
-    entry.bind("<KeyPress-Down>", lambda event: move_down_listbox(listbox, entry))
+    entry.bind("<KeyPress-Up>", lambda event: move_listbox_selection(search_listbox, entry, -1))
+    entry.bind("<KeyPress-Down>", lambda event: move_listbox_selection(search_listbox, entry, 1))
     entry.bind("<Return>", lambda event: select_from_listbox(entry, listbox))
+    
+    search_listbox.bind("<Motion>", lambda event: update_selection_on_mouse_move(event, listbox))
+    search_listbox.bind("<ButtonRelease-1>", lambda event: handle_click(event,entry, listbox))
 
-    # FocusOut 시 리스트박스를 숨김
-    entry.bind("<FocusOut>", lambda event: listbox.place_forget())
+    entry.bind("<FocusOut>", lambda event: search_frame.place_forget())
 
 # IME에서 조합 중인 문자열을 가져오는 함수
 def get_ime_composition_string(hwnd):
@@ -336,7 +344,7 @@ def key_release_handler(event, entry, listbox):
     input_text = entry.get()
 
     if event.keysym == "BackSpace" and len(input_text) == 0:
-        listbox.place_forget()
+        search_frame.place_forget()
         return
     
     if len(input_text) == 0: 
@@ -358,10 +366,10 @@ def update_autocomplete_list(entry, listbox, station_list, search_text):
 
     if input_text:
         starts_with = [station for station in station_list if station.lower().startswith(input_text)]
-        starts_with.sort(reverse=True)
+        starts_with.sort()
 
         contains = [station for station in station_list if input_text in station.lower() and not station.lower().startswith(input_text)]
-        contains.sort(reverse=True)
+        contains.sort()
 
         matching_stations = starts_with + contains
 
@@ -369,7 +377,6 @@ def update_autocomplete_list(entry, listbox, station_list, search_text):
             for station in matching_stations:
                 listbox.insert(tk.END, station)
 
-            # 리스트박스의 높이를 아이템 개수에 맞게 설정
             max_height = 50
             listbox_height = min(len(matching_stations), max_height)
             listbox.config(height=listbox_height)
@@ -377,58 +384,57 @@ def update_autocomplete_list(entry, listbox, station_list, search_text):
             adjust_listbox_size(entry, listbox)
             listbox.select_set(0)
         else:
-            listbox.place_forget()
+            search_frame.place_forget()
     else:
-        listbox.place_forget()
+        search_frame.place_forget()
 
-def move_up_listbox(listbox, entry):
+def move_listbox_selection(listbox, entry, direction):
     current_selection = listbox.curselection()
     if current_selection:
         index = current_selection[0]
-        if index > 0:
+        new_index = index + direction
+        
+        if 0 <= new_index < listbox.size():
             listbox.select_clear(index)
-            listbox.select_set(index - 1)
-            listbox.activate(index - 1)
+            listbox.select_set(new_index)
+            listbox.activate(new_index)
+            listbox.see(new_index)
+    
     adjust_listbox_size(entry, listbox)
 
-def move_down_listbox(listbox, entry):
-    current_selection = listbox.curselection()
-    if current_selection:
-        index = current_selection[0]
-        if index < listbox.size() - 1:
-            listbox.select_clear(index)
-            listbox.select_set(index + 1)
-            listbox.activate(index + 1)
-    adjust_listbox_size(entry, listbox)
-
+# 리스트박스 크기 자동 조절 및 자동 배치
 def adjust_listbox_size(entry, listbox):
     listbox_height = min(listbox.size(), 10)
     listbox.config(height=listbox_height)
-    listbox.place(x=entry.winfo_x(), y=entry.winfo_y()+ listbox.winfo_height() )
-    listbox.lift()  # 리스트박스를 최상단으로 올리기
+    search_frame.place(x=entry.winfo_x(), y=entry.winfo_y()+ entry.winfo_height() )
+    search_frame.lift()  # 리스트박스를 최상단으로 올리기
 
-# 리스트박스 항목을 선택한 후 리스트박스를 숨김
+# 검색 방향키 선택시
 def select_from_listbox(entry, listbox):
     if listbox.size() > 0:
         selected_station = listbox.get(tk.ACTIVE)
         entry.delete(0, tk.END)
         entry.insert(0, selected_station)
-        listbox.place_forget()
+        search_frame.place_forget()
 
-# 마우스 클릭 시 리스트박스 항목을 선택한 후 리스트박스 숨김
+select_listbox_item_on_mouse_move = None
+
+# 검색 마우스 클릭 이벤트
 def handle_click(event, entry, listbox):
-    index = listbox.nearest(event.y)  # 마우스 클릭 위치의 항목 찾기
-    listbox.select_clear(0, tk.END)
-    listbox.select_set(index)
-    listbox.activate(index)
-    select_from_listbox(entry, listbox)
+    global select_listbox_item_on_mouse_move
+    if select_listbox_item_on_mouse_move is not None:
+        entry.delete(0, tk.END)
+        entry.insert(0, select_listbox_item_on_mouse_move)
+        search_frame.place_forget()
 
 # 마우스가 움직일 때 선택 항목을 바꿈
 def update_selection_on_mouse_move(event, listbox):
+    global select_listbox_item_on_mouse_move
     index = event.widget.nearest(event.y)
-    listbox.select_clear(0, tk.END)  # 기존 선택된 항목 클리어
-    listbox.select_set(index)  # 마우스가 가리키는 항목 선택
+    listbox.select_clear(0, tk.END)
+    listbox.select_set(index)
     listbox.activate(index)
+    select_listbox_item_on_mouse_move=listbox.get(index)
 
 # 최단 경로 찾기 (다익스트라 알고리즘)
 def visitPlace(visit, routing):
