@@ -16,6 +16,7 @@ sheets = pd.read_excel(excel_file, sheet_name=None)
 # 노선과 환승역 시트 분리
 lines_df = {name: df for name, df in sheets.items() if name not in ['환승역','호선정보']}
 transfer_df = sheets.get('환승역', pd.DataFrame())
+transfer_stations = transfer_df['지하철명'].tolist()
 
 # 호선 정보 불러오기
 line_info_df = pd.read_excel(excel_file, sheet_name='호선정보')  # '호선정보' 시트에서 데이터 읽기
@@ -505,10 +506,13 @@ def draw_shortest_path(start, end):
     for station in path:
         x, y = station_positions[station]
         
-        if station == '부전':
-            canvas.create_image(x+10, y, image=transfer_image_bu, anchor=tk.CENTER, tags="station")
-        elif station == '벡스코(시립미술관)':
-            canvas.create_image(x, y+10, image=transfer_image_bex, anchor=tk.CENTER, tags="station")
+        if station in transfer_stations:
+            if station == '부전':
+                canvas.create_image(x+10, y, image=transfer_image_bu, anchor=tk.CENTER, tags="station")
+            elif station == '벡스코(시립미술관)':
+                canvas.create_image(x, y+10, image=transfer_image_bex, anchor=tk.CENTER, tags="station")
+            else:
+                canvas.create_image(x, y, image=transfer_image, anchor=tk.CENTER, tags="station")
         else:
             canvas.create_oval(x-5, y-5, x+5, y+5, fill='red', tags="station")
         
