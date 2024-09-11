@@ -4,7 +4,7 @@ import tkinter as tk
 from tkinter import *
 import copy
 # 이미지
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageGrab
 # 자동완성 기능
 import ctypes   
 import re
@@ -110,6 +110,7 @@ top_banner_path = r"image/bar.png"
 banner_path = r"image/banner.png"
 search_path = r"image/검색.png"
 reset_path = r"image/reset.png"
+scale_path = r"image/scale.png"
 
 #출발, 도착 아이콘 위치
 x_offset = 10
@@ -136,6 +137,7 @@ top_banner_image = load_image(top_banner_path, (1920,150))
 banner_image = load_image(banner_path, canvas_size)
 search_image = load_image(search_path, search_reset)
 reset_image = load_image(reset_path, search_reset)
+scale_image = load_image(scale_path, (400,400))
 
 def add_image(x, y, image):
    canvas.create_image(x, y, image=image, anchor=tk.NW, tags="icon")
@@ -170,6 +172,33 @@ def reset_selection():
     time_label.config(text="총 여행 시간: 0 분")
     # 초기 맵 다시 그리기
     draw_map()
+
+def on_mouse_move(event):
+    x = event.x
+    y = event.y
+    
+    # 확대할 영역의 크기와 확대 비율 설정
+    zoom_factor = 2
+    zoom_size = 200
+    zoom_x1 = max(x - zoom_size // (2 * zoom_factor), 0)
+    zoom_y1 = max(y - zoom_size // (2 * zoom_factor), 0)
+    zoom_x2 = min(x + zoom_size // (2 * zoom_factor), canvas.winfo_width())
+    zoom_y2 = min(y + zoom_size // (2 * zoom_factor), canvas.winfo_height())
+    
+    # 캔버스에서 영역 캡처
+    canvas_area = (zoom_x1+10, zoom_y1+260, zoom_x2+10, zoom_y2+260)
+    img = ImageGrab.grab(bbox=canvas_area)
+    img = img.resize((zoom_size, zoom_size), Image.Resampling.NEAREST)
+    
+    zoom_photo = ImageTk.PhotoImage(img)
+    
+    # 돋보기 창에 이미지 설정
+    magnifier_label.config(image=zoom_photo,bd=2,bg='black')
+    magnifier_label.image = zoom_photo
+    
+    # 돋보기 창 위치 조정
+    magnifier_label.place(x=x+80, y=y+210)
+
 
 station_list = list(line_info.keys()) 
 
@@ -239,6 +268,9 @@ info_canvas.pack(side=tk.RIGHT, fill=tk.Y)
 
 
 
+
+#채워넣을곳
+
 ### 하단프레임 ###
 bottom_frame= tk.Frame(root, bg="black",bd=0,highlightthickness=0)
 bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=5)
@@ -249,6 +281,17 @@ time_label.pack(side=tk.LEFT, fill=tk.X, padx=5)
 # 캔버스 생성
 canvas = tk.Canvas(root, width=canvas_x+20, height=canvas_y,bg='#000000',bd=0,highlightthickness=0)
 canvas.pack(fill=tk.BOTH, expand=True)
+
+canvas.create_image(0, 0, anchor=tk.NW, image=scale_image)
+
+# 돋보기 창 생성
+magnifier_label = tk.Label(root, bd=1, bg='white')
+magnifier_label.place(x=0, y=0)  # 초기 위치는 화면 밖으로 설정
+
+# 캔버스의 마우스 움직임 이벤트 바인딩
+canvas.bind("<Motion>", on_mouse_move)
+
+
 # 프레임 끝-----------------------------------------------------------------------
 
 # 이미지 로드 및 추가
