@@ -82,7 +82,7 @@ for i in range(len(transfer_df)):
 # tkinter 창 생성
 root = tk.Tk()
 root.title("지하철 노선도")
-
+root.configure(bg='#000000')
 # 입력기 관련 라이브러리 불러옴
 imm32 = ctypes.WinDLL('imm32')
 
@@ -106,13 +106,13 @@ trans_image_path = r"image/transportation.png"
 bu_image_path = r"image/transportation_bu.png"
 bex_image_path = r"image/transportation_bex.png"
 here_path = r"image/here.png"
-added_path = r"image/added.png"
+top_banner_path = r"image/bar.png"
+banner_path = r"image/banner.png"
 search_path = r"image/검색.png"
 reset_path = r"image/reset.png"
 
 #출발, 도착 아이콘 위치
-s_x_offset = 20
-x_offset = 5
+x_offset = 10
 y_offset = 50
 
 # 캔버스 사이즈
@@ -132,7 +132,8 @@ transfer_image = load_image(trans_image_path, train_size)  # 환승역 이미지
 transfer_image_bu = load_image(bu_image_path, (40, 20))  # 환승역 이미지 로드
 transfer_image_bex = load_image(bex_image_path, (20, 40))  # 환승역 이미지 로드
 here_image = load_image(here_path, train_size)
-added_image = load_image(added_path, canvas_size)
+top_banner_image = load_image(top_banner_path, (1920,150))
+banner_image = load_image(banner_path, canvas_size)
 search_image = load_image(search_path, search_reset)
 reset_image = load_image(reset_path, search_reset)
 
@@ -174,34 +175,31 @@ station_list = list(line_info.keys())
 
 # 프레임 시작 -----------------------------------------------------------------------
 # 상단 프레임 1
-controls_frame = tk.Frame(root)
-controls_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
-center_frame = tk.Frame(controls_frame)
-center_frame.pack(side=tk.TOP, fill=tk.X)
+# controls_frame을 캔버스로 대체하여 배경 이미지 설정
+controls_frame = tk.Canvas(root, width=top_banner_image.width(), height=top_banner_image.height(), highlightthickness=0)  # highlightthickness로 캔버스 테두리 제거
+controls_frame.pack(side=tk.TOP, fill=tk.X, padx=0, pady=0)
 
-# 왼쪽 공백
-Empty_label = tk.Label(center_frame, text="\t\t\t\t\t\t\t\t")
-Empty_label.pack(side=tk.LEFT)
-# 출발지 입력창
-start_label = tk.Label(center_frame, text="출발역:", font=("Helvetica", 16))
-start_label.pack(side=tk.LEFT, padx=5, pady=10)
-start_entry = tk.Entry(center_frame, font=("Helvetica", 15))
-start_entry.pack(side=tk.LEFT, padx=5, pady=10)
-Empty_label = tk.Label(center_frame, text="\t")
-Empty_label.pack(side=tk.LEFT)
-# 도착지 입력창
-end_label = tk.Label(center_frame, text="도착역:", font=("Helvetica", 16))
-end_label.pack(side=tk.LEFT, padx=5, pady=10)
-end_entry = tk.Entry(center_frame, font=("Helvetica", 15))
-end_entry.pack(side=tk.LEFT, padx=5, pady=10)
+# 캔버스에 이미지 배경 설정
+controls_frame.create_image(0, 0, anchor=tk.NW, image=top_banner_image)
 
-# 검색 버튼 (이미지로 대체)
-set_button = tk.Button(center_frame, image=search_image, command=set_stations)
-set_button.pack(side=tk.LEFT, padx=5, pady=20)
+# 이미지 객체를 계속 참조하기 위해 저장
+controls_frame.image = top_banner_image
 
-# 리셋 버튼 (이미지로 대체)
-reset_button = tk.Button(center_frame, image=reset_image, command=reset_selection)
-reset_button.pack(side=tk.LEFT, padx=5, pady=20)
+# 출발지 입력창 (절대 좌표로 배치)
+start_entry = tk.Entry(controls_frame, font=("Nanum Gothic", 15), bd=0, highlightthickness=0)  # 테두리와 하이라이트 제거
+start_entry.place(x=520, y=68)
+
+# 도착지 입력창 (절대 좌표로 배치)
+end_entry = tk.Entry(controls_frame, font=("Nanum Gothic", 15), bd=0, highlightthickness=0)  # 테두리 제거
+end_entry.place(x=1040, y=68)
+
+# 검색 버튼 (이미지로 대체, 절대 좌표로 배치)
+set_button = tk.Button(controls_frame, image=search_image, bd=0, highlightthickness=0,bg="#65418E", command=set_stations)  # 버튼 테두리 제거
+set_button.place(x=1400, y=53)
+
+# 리셋 버튼 (이미지로 대체, 절대 좌표로 배치)
+reset_button = tk.Button(controls_frame, image=reset_image, bd=0, highlightthickness=0, bg="#65418E", command=reset_selection)  # 버튼 테두리 제거
+reset_button.place(x=1470, y=53)
 
 # 검색 자동완성 박스
 search_frame = tk.Frame(root)
@@ -212,35 +210,34 @@ search_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 search_listbox.config(yscrollcommand=search_scrollbar.set)
 search_frame.pack_forget()
 
+# 포커스 인/아웃 시 검색 자동완성 리스트박스 보여주기
 start_entry.bind("<FocusIn>", lambda event: entry_focus_in(start_entry, search_listbox))
 end_entry.bind("<FocusIn>", lambda event: entry_focus_in(end_entry, search_listbox))
 
 # 상단 프레임 2
-button_frame = tk.Frame(root)
+button_frame = tk.Frame(root, bg="white")
 button_frame.pack(side=tk.TOP, fill=tk.X)
 
 # 호선별 버튼을 위한 프레임 설정
-line_label = tk.Label(button_frame, text="노선정보 ▶ ", fg="blue")
+line_label = tk.Label(button_frame, text="노선정보 ▶ ", fg="blue", bg="white")
 line_label.pack(side=tk.LEFT, padx=5)
-line_buttons_frame = tk.Frame(button_frame)
+line_buttons_frame = tk.Frame(button_frame, bg="white")
 line_buttons_frame.pack(side=tk.LEFT, fill=tk.X, padx=5)
 
-
 # 편의시설 버튼 프레임 설정
-category_btn_frame = tk.Frame(button_frame)
+category_btn_frame = tk.Frame(button_frame, bg="white")
 category_btn_frame.pack(side=tk.RIGHT, fill=tk.X, padx=5)
-category_label = tk.Label(button_frame, text="편의시설 ▶ ", fg="blue")
+category_label = tk.Label(button_frame, text="편의시설 ▶ ", fg="blue", bg="white")
 category_label.pack(side=tk.RIGHT, padx=5)
 
-# 우측 프레임
-info_frame = tk.Frame(root, padx=10, pady=10, bg='lightgrey', width=300)
-info_frame.pack(side=tk.RIGHT, fill=tk.Y)
 
-details_label = tk.Label(info_frame, text="경로 세부정보", font=("Arial", 12, "bold"), bg='lightgrey')
-details_label.pack(pady=(0, 10))
+# 우측 캔버스 프레임
+info_canvas = tk.Canvas(root, width=300, bg='#000000')
+info_canvas.pack(side=tk.RIGHT, fill=tk.Y)
+#채워넣을곳
 
-details_text = tk.Text(info_frame, width=40, height=20, wrap=tk.WORD, padx=5, pady=5)
-details_text.pack(expand=True)
+
+
 
 ### 하단프레임 ###
 bottom_frame= tk.Frame(root)
@@ -253,15 +250,15 @@ time_label = tk.Label(bottom_frame, text="총 여행 시간: 0 분")
 time_label.pack(side=tk.LEFT, padx=5)
 
 # 캔버스 생성
-canvas = tk.Canvas(root, width=canvas_x, height=canvas_y)
+canvas = tk.Canvas(root, width=canvas_x+20, height=canvas_y,bg='#000000')
 canvas.pack(fill=tk.BOTH, expand=True)
 # 프레임 끝-----------------------------------------------------------------------
 
 # 이미지 로드 및 추가
-if added_image:
-    canvas.create_image(0, 0, anchor=tk.NW, image=added_image)
-    canvas.image = added_image  # 이미지 참조 유지
-    print("Image loaded and added to canvas.")
+if banner_image:
+    canvas.create_image(0, 0, anchor=tk.NW, image=banner_image)
+    canvas.image = banner_image  # 이미지 참조 유지
+    print("Image loaded and banner to canvas.")
 else:
     print("Failed to load image.")
 
@@ -581,7 +578,7 @@ def draw_shortest_path(start, end):
     for station in path:
         x, y = station_positions[station]      
         if station == start:
-            add_image(x-s_x_offset, y-y_offset, start_image)
+            add_image(x-x_offset, y-y_offset, start_image)
         elif station == end:
             add_image(x-x_offset, y-y_offset, end_image)
 
@@ -668,7 +665,7 @@ for line, path in line_images_paths.items():
 # 이미지 버튼
 for line, img in line_images.items():
     # 이미지 버튼 생성
-    button = tk.Label(line_buttons_frame, image=img)
+    button = tk.Label(line_buttons_frame, image=img, bg="white")
     button.pack(side=tk.LEFT, padx=0)
     
         # 이미지 클릭 시 함수 호출
@@ -776,7 +773,7 @@ def create_facility_buttons():
     for facility, img in facility_images.items():
         var = tk.IntVar()  # 체크박스의 상태를 관리할 변수
         facility_vars[facility] = var
-        button = tk.Label(category_btn_frame, image=img)
+        button = tk.Label(category_btn_frame, image=img, bg="white")
         button.image = img  # 유지되도록 참조를 유지합니다.
         button.pack(side=tk.LEFT, padx=5, pady=2)
 
