@@ -232,7 +232,7 @@ category_label.pack(side=tk.RIGHT, padx=5)
 
 
 # 우측 캔버스 프레임
-info_canvas = tk.Canvas(root, width=300, bg='#000000')
+info_canvas = tk.Canvas(root, width=300, bg='#000000',bd=0,highlightthickness=0)
 info_canvas.pack(side=tk.RIGHT, fill=tk.Y)
 #채워넣을곳
 
@@ -240,17 +240,14 @@ info_canvas.pack(side=tk.RIGHT, fill=tk.Y)
 
 
 ### 하단프레임 ###
-bottom_frame= tk.Frame(root)
+bottom_frame= tk.Frame(root, bg="black",bd=0,highlightthickness=0)
 bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=5)
 # 현재 시간을 표시할 레이블
-realtime_label = tk.Label(bottom_frame, font=('Helvetica', 16), fg='blue')
-realtime_label.pack(side=tk.LEFT, fill=tk.X, padx=5)
-# 총 주행시간
-time_label = tk.Label(bottom_frame, text="총 여행 시간: 0 분")
-time_label.pack(side=tk.LEFT, padx=5)
+time_label = tk.Label(bottom_frame, font=('Helvetica', 16), fg='white', bg='black')
+time_label.pack(side=tk.LEFT, fill=tk.X, padx=5)
 
 # 캔버스 생성
-canvas = tk.Canvas(root, width=canvas_x+20, height=canvas_y,bg='#000000')
+canvas = tk.Canvas(root, width=canvas_x+20, height=canvas_y,bg='#000000',bd=0,highlightthickness=0)
 canvas.pack(fill=tk.BOTH, expand=True)
 # 프레임 끝-----------------------------------------------------------------------
 
