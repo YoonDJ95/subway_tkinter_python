@@ -4,11 +4,12 @@ import tkinter as tk
 from tkinter import *
 import copy
 # 이미지
-from PIL import Image, ImageTk, ImageGrab
+from PIL import Image, ImageTk, ImageGrab, ImageSequence
 # 자동완성 기능
 import ctypes   
 import re
 from datetime import datetime
+import webbrowser
 
 # 엑셀 파일을 시트별로 불러오기
 excel_file = r'C:\\subway_tkinter\\subway_tkinter\\subway.xlsx'
@@ -81,6 +82,7 @@ for i in range(len(transfer_df)):
  
 # tkinter 창 생성
 root = tk.Tk()
+root.geometry("1920x1080+0+0")
 root.title("지하철 노선도")
 root.configure(bg='#000000')
 # 입력기 관련 라이브러리 불러옴
@@ -99,6 +101,23 @@ def load_image(file_path, size):
         print(f"An error occurred: {e}")
         return None
 
+class AnimatedGIF(Label):
+    def __init__(self, master, gif_path):
+        super().__init__(master)
+        self.gif = Image.open(gif_path)
+        self.frames = [ImageTk.PhotoImage(frame.copy()) for frame in ImageSequence.Iterator(self.gif)]
+        self.current_frame = 0
+        self.config(image=self.frames[self.current_frame])
+        self.update_image()
+
+    def update_image(self):
+        self.current_frame = (self.current_frame + 1) % len(self.frames)
+        self.config(image=self.frames[self.current_frame])
+        self.after(100, self.update_image)  # Adjust delay to control animation speed
+def open_link(event):
+    # 하이퍼링크 URL을 여는 함수
+    webbrowser.open("http://k-digitalhackathon.kr/")
+
 # 이미지 로드
 start_image_path = r"image/start.png"
 end_image_path = r"image/end.png"
@@ -116,6 +135,235 @@ scale_path = r"image/scale.png"
 x_offset = 10
 y_offset = 50
 
+def station_text(name):
+    global text_x_offset,text_y_offset
+    #부산 김해선
+    if name == '지내':
+        text_x_offset = 0
+        text_y_offset = -15
+    elif name == '김해대학':
+        text_x_offset = 45
+        text_y_offset = 0
+    elif name == '불암':
+        text_x_offset = 0
+        text_y_offset = 15
+    elif name == '대사':
+        text_x_offset = 0
+        text_y_offset = 15
+    elif name == '평강':
+        text_x_offset = 0
+        text_y_offset = 15    
+    elif name == '서부산유통지구':
+        text_x_offset = 0
+        text_y_offset = -25
+    elif name == '괘법르네시떼':
+        text_x_offset = 0
+        text_y_offset = -15
+    #동해선
+    elif name == '거제해맞이':
+        text_x_offset = 45
+        text_y_offset = 0
+    elif name == '동래(동해선)':
+        text_x_offset = 0
+        text_y_offset = 15
+    elif name == '안락':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '부산원동':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '재송':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '센텀':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '좌천(동해선)':
+        text_x_offset = 40
+        text_y_offset = 0
+    elif name == '망양':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '덕하':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '개운포':
+        text_x_offset = 0
+        text_y_offset = -20
+    elif name == '태화강':
+        text_x_offset = 0
+        text_y_offset = 20
+    # 1호선
+    elif name == '다대포해수욕장':
+        text_x_offset = 0
+        text_y_offset = 15
+    elif name == '동매':
+        text_x_offset = 20
+        text_y_offset = 0
+    elif name == '신평':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '하단':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '당리':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '사하':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '괴정':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '대티':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '서대신':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '동대신':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '토성':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '자갈치':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '남포':
+        text_x_offset = -30
+        text_y_offset = 0
+    elif name == '부전':
+        text_x_offset = -50
+        text_y_offset = 0
+    elif name == '연산':
+        text_x_offset = -25
+        text_y_offset = -10
+    elif name == '교대':
+        text_x_offset = -25
+        text_y_offset = -10
+    elif name == '동래':
+        text_x_offset = -25
+        text_y_offset = -10
+    # 2호선
+    elif name == '부산대양산캠퍼스':
+        text_x_offset = -60
+        text_y_offset = 0
+    elif name == '덕천':
+        text_x_offset = -25
+        text_y_offset = -10
+    elif name == '주례':
+        text_x_offset = -15
+        text_y_offset = 10
+    elif name == '냉정':
+        text_x_offset = 0
+        text_y_offset = 10
+    elif name == '개금':
+        text_x_offset = 0
+        text_y_offset = 10
+    elif name == '동의대':
+        text_x_offset = 0
+        text_y_offset = 10
+    elif name == '가야':
+        text_x_offset = 0
+        text_y_offset = 10
+    elif name == '부암':
+        text_x_offset = 0
+        text_y_offset = 10
+    elif name == '국제금융센터.부산은행':
+        text_x_offset = -70
+        text_y_offset = 0
+    elif name == '지계골':
+        text_x_offset = 0
+        text_y_offset = -20
+    elif name == '못골':
+        text_x_offset = 0
+        text_y_offset = -20
+    elif name == '경성대.부경대':
+        text_x_offset = -50
+        text_y_offset = 0
+    elif name == '민락':
+        text_x_offset = 20
+        text_y_offset = 0
+    elif name == '센텀시티':
+        text_x_offset = 0
+        text_y_offset = -20
+    elif name == '벡스코(시립미술관)':
+        text_x_offset = 0
+        text_y_offset = -50
+    elif name == '동백':
+        text_x_offset = 0
+        text_y_offset = -20
+    elif name == '해운대':
+        text_x_offset = 0
+        text_y_offset = -20
+    elif name == '중동':
+        text_x_offset = 0
+        text_y_offset = -20
+    elif name == '장산':
+        text_x_offset = 0
+        text_y_offset = 20
+    # 3호선
+    elif name == '체육공원':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '강서구청':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '구포':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '숙등':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '남산정':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '만덕':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '사직':
+        text_x_offset = 20
+        text_y_offset = 0
+    elif name == '종합운동장':
+        text_x_offset = 30
+        text_y_offset = -10
+    elif name == '거제':
+        text_x_offset = 20
+        text_y_offset = -20
+    elif name == '물만골':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '배산':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '망미':
+        text_x_offset = 0
+        text_y_offset = 20
+    # 4호선
+    elif name == '반여농산물시장':
+        text_x_offset = -50
+        text_y_offset = 0
+    elif name == '서동':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '명장':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '충렬사':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '낙민':
+        text_x_offset = 0
+        text_y_offset = 20
+    elif name == '수안':
+        text_x_offset = 0
+        text_y_offset = 20
+    # 그외~
+    else :
+        text_x_offset = -30  
+        text_y_offset = 0  
+        
 # 캔버스 사이즈
 canvas_x = 1600
 canvas_y = 900
@@ -186,50 +434,60 @@ def on_mouse_move(event):
     zoom_y2 = min(y + zoom_size // (2 * zoom_factor), canvas.winfo_height())
     
     # 캔버스에서 영역 캡처
-    canvas_area = (zoom_x1+10, zoom_y1+260, zoom_x2+10, zoom_y2+260)
+    canvas_area = (zoom_x1+10, zoom_y1+220, zoom_x2+10, zoom_y2+220)
     img = ImageGrab.grab(bbox=canvas_area)
     img = img.resize((zoom_size, zoom_size), Image.Resampling.NEAREST)
     
     zoom_photo = ImageTk.PhotoImage(img)
     
-    # 돋보기 창에 이미지 설정
-    magnifier_label.config(image=zoom_photo,bd=2,bg='black')
+    # 돋보기 창의 크기와 위치 조정
+    magnifier_x = x + 80
+    magnifier_y = y + 210
+    
+    # 캔버스의 크기를 가져와 돋보기 창의 위치를 조정
+    canvas_width = canvas.winfo_width()
+    canvas_height = canvas.winfo_height()
+    
+    # 돋보기 창이 캔버스 영역 내에 위치하도록 조정
+    if magnifier_x + zoom_size > canvas_width:
+        magnifier_x = canvas_width - zoom_size
+    if magnifier_y + zoom_size > canvas_height:
+        magnifier_y = canvas_height - zoom_size
+    
+    magnifier_label.config(image=zoom_photo, bd=2, bg='black')
     magnifier_label.image = zoom_photo
     
     # 돋보기 창 위치 조정
-    magnifier_label.place(x=x+80, y=y+210)
+    magnifier_label.place(x=magnifier_x, y=magnifier_y)
 
+def on_mouse_leave(event):
+    # 돋보기 창 숨기기
+    magnifier_label.place_forget()
 
 station_list = list(line_info.keys()) 
 
 # 프레임 시작 -----------------------------------------------------------------------
-# 상단 프레임 1
+## 상단 프레임 1
 # controls_frame을 캔버스로 대체하여 배경 이미지 설정
 controls_frame = tk.Canvas(root, width=top_banner_image.width(), height=top_banner_image.height(), highlightthickness=0)  # highlightthickness로 캔버스 테두리 제거
 controls_frame.pack(side=tk.TOP, fill=tk.X, padx=0, pady=0)
 
 # 캔버스에 이미지 배경 설정
 controls_frame.create_image(0, 0, anchor=tk.NW, image=top_banner_image)
-
-# 이미지 객체를 계속 참조하기 위해 저장
 controls_frame.image = top_banner_image
 
 # 출발지 입력창 (절대 좌표로 배치)
 start_entry = tk.Entry(controls_frame, font=("Nanum Gothic", 15), bd=0, highlightthickness=0)  # 테두리와 하이라이트 제거
 start_entry.place(x=520, y=68)
-
 # 도착지 입력창 (절대 좌표로 배치)
 end_entry = tk.Entry(controls_frame, font=("Nanum Gothic", 15), bd=0, highlightthickness=0)  # 테두리 제거
 end_entry.place(x=1040, y=68)
-
 # 검색 버튼 (이미지로 대체, 절대 좌표로 배치)
 set_button = tk.Button(controls_frame, image=search_image, bd=0, highlightthickness=0,bg="#65418E", command=set_stations)  # 버튼 테두리 제거
 set_button.place(x=1400, y=53)
-
 # 리셋 버튼 (이미지로 대체, 절대 좌표로 배치)
 reset_button = tk.Button(controls_frame, image=reset_image, bd=0, highlightthickness=0, bg="#65418E", command=reset_selection)  # 버튼 테두리 제거
 reset_button.place(x=1470, y=53)
-
 # 검색 자동완성 박스
 search_frame = tk.Frame(root)
 search_listbox = tk.Listbox(search_frame)
@@ -238,20 +496,22 @@ search_scrollbar = tk.Scrollbar(search_frame, orient=tk.VERTICAL, command=search
 search_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 search_listbox.config(yscrollcommand=search_scrollbar.set)
 search_frame.pack_forget()
-
 # 포커스 인/아웃 시 검색 자동완성 리스트박스 보여주기
 start_entry.bind("<FocusIn>", lambda event: entry_focus_in(start_entry, search_listbox))
 end_entry.bind("<FocusIn>", lambda event: entry_focus_in(end_entry, search_listbox))
 
-# 상단 프레임 2
+## 상단 프레임 2
 button_frame = tk.Frame(root, bg="white")
 button_frame.pack(side=tk.TOP, fill=tk.X)
-
 # 호선별 버튼을 위한 프레임 설정
 line_label = tk.Label(button_frame, text="노선정보 ▶ ", fg="blue", bg="white")
 line_label.pack(side=tk.LEFT, padx=5)
 line_buttons_frame = tk.Frame(button_frame, bg="white")
 line_buttons_frame.pack(side=tk.LEFT, fill=tk.X, padx=5)
+empty_label=tk.Label(button_frame, text='\t\t',bg='white')
+empty_label.pack(side=tk.LEFT, fill=tk.X, padx=5)
+movetime_label = tk.Label(button_frame, font=('Helvetica', 16), fg='blue', bg='white')
+movetime_label.pack(side=tk.LEFT, fill=tk.X, padx=5)
 
 # 편의시설 버튼 프레임 설정
 category_btn_frame = tk.Frame(button_frame, bg="white")
@@ -259,17 +519,12 @@ category_btn_frame.pack(side=tk.RIGHT, fill=tk.X, padx=5)
 category_label = tk.Label(button_frame, text="편의시설 ▶ ", fg="blue", bg="white")
 category_label.pack(side=tk.RIGHT, padx=5)
 
-
 # 우측 캔버스 프레임
-info_canvas = tk.Canvas(root, width=300, bg='#000000',bd=0,highlightthickness=0)
-info_canvas.pack(side=tk.RIGHT, fill=tk.Y)
-#채워넣을곳
+info_frame = AnimatedGIF(root, "image/banner_hachathon.gif")
+info_frame.config(bg='black', borderwidth=2, relief="solid")
+info_frame.pack(side=tk.RIGHT, fill=tk.Y)
+info_frame.bind("<Button-1>", open_link)  # 왼쪽 클릭에 대한 이벤트 처리
 
-
-
-
-
-#채워넣을곳
 
 ### 하단프레임 ###
 bottom_frame= tk.Frame(root, bg="black",bd=0,highlightthickness=0)
@@ -286,12 +541,10 @@ canvas.create_image(0, 0, anchor=tk.NW, image=scale_image)
 
 # 돋보기 창 생성
 magnifier_label = tk.Label(root, bd=1, bg='white')
-magnifier_label.place(x=0, y=0)  # 초기 위치는 화면 밖으로 설정
-
+magnifier_label.place_forget()  # 처음에는 숨김
 # 캔버스의 마우스 움직임 이벤트 바인딩
 canvas.bind("<Motion>", on_mouse_move)
-
-
+canvas.bind("<Leave>", on_mouse_leave)
 # 프레임 끝-----------------------------------------------------------------------
 
 # 이미지 로드 및 추가
@@ -388,7 +641,6 @@ def draw_map(hidden_lines=None, highlighted_stations=None):
                 # 일반 역의 경우
                 station_color = station_colors.get(name, 'black') if name not in highlighted_stations else colors.get(sheet_name, 'black')
                 canvas.create_oval(x-5, y-5, x+5, y+5, fill=station_color, tags="station")
-                canvas.create_text(x, y-15, text=name, fill=station_color, tags="station_name")
 
     # 역 이름을 선과 아이콘 위에 표시
     name_positions = {}
@@ -398,12 +650,14 @@ def draw_map(hidden_lines=None, highlighted_stations=None):
         while (x, y) in name_positions.values():
             offset += 20
             y += offset
-        name_positions[station] = (x, y)
+        name_positions[station] = (x, y)   
+        # 역이름 위치조정구역
+        station_text(station)
         if station in transfer_stations:
-            canvas.create_text(x, y-15, text=station, fill='black', tags="station_name")
+            canvas.create_text(x-text_x_offset, y-text_y_offset, text=station, fill='black', tags="station_name")
         else:
             station_color = station_colors.get(station, 'black') if station not in highlighted_stations else colors.get(sheet_name, 'black')
-            canvas.create_text(x, y-15, text=station, fill=station_color, tags="station_name")
+            canvas.create_text(x-text_x_offset, y-text_y_offset, text=station, fill=station_color, tags="station_name")
 
 # 엔트리 활성화시
 def entry_focus_in(entry, listbox):
@@ -565,6 +819,8 @@ def clear_canvas():
     canvas.delete("station_name")  # 모든 역 삭제
     canvas.delete("station_oval")  # 모든 역 삭제
     canvas.delete("icon")
+    movetime_label.config(text=f"여행시간 및 여행거리 탐색중...")
+    
 
 # 경로 그리기
 def draw_shortest_path(start, end):
@@ -611,8 +867,9 @@ def draw_shortest_path(start, end):
                 canvas.create_image(x, y, image=transfer_image, anchor=tk.CENTER, tags="station")
         else:
             canvas.create_oval(x-5, y-5, x+5, y+5, fill='red', tags="station")
-        
-        canvas.create_text(x, y-15, text=station, fill='red', tags="station")
+        # 역 이름 조정 구역 2
+        station_text(station)
+        canvas.create_text(x-text_x_offset, y-text_y_offset, text=station, fill='red', tags="station")
     
     # 경로 상의 아이콘 다시 추가
     for station in path:
@@ -649,7 +906,7 @@ def draw_shortest_path(start, end):
     print(f"총 이동 시간: {total_time} 분")
 
     # UI에 시간 정보 업데이트
-    time_label.config(text=f"총 여행 시간: {total_time} 분, 총 이동 거리: {total_distance} km")
+    movetime_label.config(text=f"총 여행 시간: {total_time} 분, 총 이동 거리: {total_distance} km")
 
       
 # 체크박스 상태를 저장할 변수들
@@ -746,7 +1003,8 @@ def show_line(line_name):
             else:
                 station_color = station_colors.get(name, 'black')
                 canvas.create_oval(x-5, y-5, x+5, y+5, fill=station_color, tags="station")
-            canvas.create_text(x, y-15, text=name, fill=color, tags="station_name")
+            station_text(name)
+            canvas.create_text(x-text_x_offset, y-text_y_offset, text=name, fill=color, tags="station_name")
     else:
         draw_map()  # 선택된 노선이 없으면 모든 노선 그리기
         
