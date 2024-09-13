@@ -16,10 +16,10 @@ import os
 import webbrowser
 
 # 엑셀 파일을 시트별로 불러오기
-excel_file = r'C:\\subway_tkinter\\subway_tkinter\\subway.xlsx'
+excel_file = r'subway.xlsx'
 sheets = pd.read_excel(excel_file, sheet_name=None)
 # 추가 엑셀
-excel_station_codes = pd.read_excel('C:\\subway_tkinter\\subway_tkinter\\운영기관_역사_코드정보_2024.04.25.xlsx')
+excel_station_codes = pd.read_excel('운영기관_역사_코드정보_2024.04.25.xlsx')
 # .env 파일로드
 load_dotenv()
 api_key = os.getenv("API_KEY")
@@ -934,7 +934,7 @@ def show_approach_info(approach_info):
     labels.clear()
 
     # 빠른쪽
-    subway_info_1_text = tk.Label(bottom_frame, text=f"당역 도착예정 : {approach_info[0][0]}행", 
+    subway_info_1_text = tk.Label(bottom_frame, text=f"{approach_info[0][0]}행", 
                                   font=("Helvetica", font_size, "bold"), bg="black", fg="#D3D3D3")
     subway_info_1_text.place(x=100, y=20)
     labels.append(subway_info_1_text)
@@ -942,7 +942,7 @@ def show_approach_info(approach_info):
                                     font=("Helvetica", font_size, "bold"), bg="black", fg="yellow")
     subway_info_1_number.place(x=subway_info_1_text.winfo_reqwidth() + 110, y=20)
     labels.append(subway_info_1_number)
-    subway_info_1_minute = tk.Label(bottom_frame, text="분", 
+    subway_info_1_minute = tk.Label(bottom_frame, text="분 뒤 도착예정", 
                                     font=("Helvetica", font_size, "bold"), bg="black", fg="#D3D3D3")
     subway_info_1_minute.place(x=subway_info_1_number.winfo_reqwidth() + subway_info_1_text.winfo_reqwidth() + 120, y=20)
     labels.append(subway_info_1_minute)
@@ -956,7 +956,7 @@ def show_approach_info(approach_info):
                                     font=("Helvetica", font_size, "bold"), bg="black", fg="skyblue")
     subway_info_2_number.place(x=610 + subway_info_2_text.winfo_reqwidth() + 10, y=20)
     labels.append(subway_info_2_number)
-    subway_info_2_minute = tk.Label(bottom_frame, text="분", 
+    subway_info_2_minute = tk.Label(bottom_frame, text="분 뒤 도착예정", 
                                     font=("Helvetica", font_size, "bold"), bg="black", fg="#D3D3D3")
     subway_info_2_minute.place(x=610 + subway_info_2_text.winfo_reqwidth() + subway_info_2_number.winfo_reqwidth() + 20, y=20)
     labels.append(subway_info_2_minute)
