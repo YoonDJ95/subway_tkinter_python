@@ -833,7 +833,6 @@ def request_train_schedule(station_codes,right_now):
 
     return data
 
-
 # 호선 따기
 def get_line(start,station_next_start):
     st1=excel_station_codes[excel_station_codes['STIN_NM'] == start]
@@ -842,7 +841,6 @@ def get_line(start,station_next_start):
         for y in st2['LN_CD']:
             if x==y:
                 return x
-
 
 # 방향 따기
 def get_direction(start,station_next_start,line_number):
@@ -861,7 +859,6 @@ def get_direction(start,station_next_start,line_number):
         return None
     else:
         return False
-    
 
 # 종착역 이름 따기
 def find_tmn_stin_cd_name(tmn_stin_cd,line_number):
@@ -874,7 +871,6 @@ def find_tmn_stin_cd_name(tmn_stin_cd,line_number):
     tmn_stin_name = excel_station_codes[(excel_station_codes['STIN_CD'] == tmn_stin_cd) & (excel_station_codes['LN_CD'] == line_number)].iloc[0,5]
 
     return tmn_stin_name
-
 
 # 최종 남은 도착시간 따기
 def get_arrival_time(start,line_number,route_forward,schedule_data,right_now):
@@ -909,11 +905,15 @@ def get_arrival_time(start,line_number,route_forward,schedule_data,right_now):
             arv_tm = row['arvTm']
         else:
             arv_tm = row['dptTm']
-        if arv_tm.startswith("00") and not now_dt_str.startswith("00"):
+            
+        arv_tm_hour=int(arv_tm[:2])
+        
+        if arv_tm.startswith("00"):
             tmn_stin_name=find_tmn_stin_cd_name(row['tmnStinCd'],line_number)
             train_forward=get_direction(start,tmn_stin_name,line_number)
             arv_tm_dt = datetime.strptime(arv_tm, time_format)
-            arv_tm_dt += timedelta(days=1)
+            if arv_tm_hour>3:
+                arv_tm_dt += timedelta(days=1)
             time_difference = (arv_tm_dt - now_dt).total_seconds()
 
             if time_difference>=0 and str(line_number)==row['lnCd'] and route_forward==train_forward:
@@ -921,10 +921,9 @@ def get_arrival_time(start,line_number,route_forward,schedule_data,right_now):
                 int_time_difference=int(time_difference/60)
                 approach_info.append([arrival_name,int_time_difference])
         
-        if len(approach_info)==2 or not arv_tm.startswith("00"):
+        if len(approach_info)==2 or arv_tm_hour>3:
             return approach_info
         
-
 # 라벨 생성
 def show_approach_info(approach_info):
     global labels
