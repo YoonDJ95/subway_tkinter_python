@@ -8,12 +8,22 @@ from PIL import Image, ImageTk, ImageGrab, ImageSequence
 # 자동완성 기능
 import ctypes   
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
+import holidays
+import requests
+from dotenv import load_dotenv
+import os
 import webbrowser
 
 # 엑셀 파일을 시트별로 불러오기
 excel_file = r'C:\\subway_tkinter\\subway_tkinter\\subway.xlsx'
 sheets = pd.read_excel(excel_file, sheet_name=None)
+# 추가 엑셀
+excel_station_codes = pd.read_excel('C:\\subway_tkinter\\subway_tkinter\\운영기관_역사_코드정보_2024.04.25.xlsx')
+# .env 파일로드
+load_dotenv()
+api_key = os.getenv("API_KEY")
+labels=[]
 
 # 노선과 환승역 시트 분리
 lines_df = {name: df for name, df in sheets.items() if name not in ['환승역','호선정보']}
@@ -389,14 +399,6 @@ scale_image = load_image(scale_path, (400,400))
 
 def add_image(x, y, image):
    canvas.create_image(x, y, image=image, anchor=tk.NW, tags="icon")
-
-def update_time():
-    # 현재 시간을 가져옴
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    # 레이블에 현재 시간 업데이트
-    time_label.config(text=current_time)
-    # 1초마다 갱신
-    root.after(1000, update_time)
     
 # 출발역과 도착역을 설정하여 경로 찾기
 def set_stations():
@@ -416,8 +418,10 @@ def reset_selection():
     start_entry.delete(0, tk.END)
     end_entry.delete(0, tk.END)
     
-    # 총 여행 시간 및 거리 초기화
-    time_label.config(text="총 여행 시간: 0 분")
+    for label in labels:
+        label.destroy()
+    labels.clear()
+    
     # 초기 맵 다시 그리기
     draw_map()
 
@@ -527,11 +531,12 @@ info_frame.bind("<Button-1>", open_link)  # 왼쪽 클릭에 대한 이벤트 �
 
 
 ### 하단프레임 ###
-bottom_frame= tk.Frame(root, bg="black",bd=0,highlightthickness=0)
-bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=5)
-# 현재 시간을 표시할 레이블
-time_label = tk.Label(bottom_frame, font=('Helvetica', 16), fg='white', bg='black')
-time_label.pack(side=tk.LEFT, fill=tk.X, padx=5)
+bottom_frame = tk.Frame(root, bg="black", height=80)
+bottom_frame.pack(side='bottom', fill='x')
+
+source_info = tk.Label(bottom_frame, text="API 출처: 국가철도공단(https://data.kric.go.kr/)", 
+                       font=("Helvetica", 15), bg="black", fg="white", anchor='e')
+source_info.place(x=1150, y=40)
 
 # 캔버스 생성
 canvas = tk.Canvas(root, width=canvas_x+20, height=canvas_y,bg='#000000',bd=0,highlightthickness=0)
@@ -779,6 +784,182 @@ def update_selection_on_mouse_move(event, listbox):
     listbox.select_set(index)
     listbox.activate(index)
     select_listbox_item_on_mouse_move=listbox.get(index)
+    
+# 남은 도착시간 가져오는 함수
+def remain_arvTm(start,station_next_start):
+    right_now=datetime.now()
+    line_number=get_line(start,station_next_start)
+    station_codes=find_code_excel(start,line_number)
+    schedule_data=request_train_schedule(station_codes,right_now)
+    route_forward=get_direction(start,station_next_start,line_number)
+    approach_info=get_arrival_time(start,line_number,route_forward,schedule_data,right_now)
+    show_approach_info(approach_info)
+
+
+# 엑셀에서 코드 찾기
+def find_code_excel(start,line_number):
+    search_data = excel_station_codes[(excel_station_codes['STIN_NM'] == start) & (excel_station_codes['LN_CD'] == line_number)]
+    station_codes=[]
+    for x in range(0,len(search_data.columns),2):
+        station_codes.append(search_data.iloc[0,x])
+    return station_codes
+
+
+# API 요청
+def request_train_schedule(station_codes,right_now):
+    current_weekday = right_now.weekday()
+    today = right_now.date()
+    kr_holidays = holidays.KR()
+
+    if current_weekday < 5:
+        day_value = 8
+    elif current_weekday == 6 or today in kr_holidays:
+        day_value = 9
+    else: 
+        day_value = 7
+        
+    url = 'https://openapi.kric.go.kr/openapi/convenientInfo/stationTimetable'
+    params = {
+        'serviceKey': api_key,
+        'format': 'json',
+        'railOprIsttCd': station_codes[0],
+        'lnCd': station_codes[1],
+        'stinCd': station_codes[2],
+        'dayCd': day_value
+    }
+
+    response = requests.get(url, params=params)
+    data=response.json()
+
+    return data
+
+
+# 호선 따기
+def get_line(start,station_next_start):
+    st1=excel_station_codes[excel_station_codes['STIN_NM'] == start]
+    st2=excel_station_codes[excel_station_codes['STIN_NM'] == station_next_start]
+    for x in st1['LN_CD']:
+        for y in st2['LN_CD']:
+            if x==y:
+                return x
+
+
+# 방향 따기
+def get_direction(start,station_next_start,line_number):
+    if line_number=="K6":
+        get_sheet_name="동해선"
+    elif line_number=="B1":
+        get_sheet_name="부김선"
+    else:
+        get_sheet_name=str(line_number)+"호선"
+    df_get_sheet=sheets[get_sheet_name]
+    start_num=df_get_sheet[df_get_sheet['지하철명'] == start].index.to_list()[0]
+    start_next_start_num=df_get_sheet[df_get_sheet['지하철명'] == station_next_start].index.to_list()[0]
+    if start_num-start_next_start_num>0:
+        return True
+    if start_num-start_next_start_num==0:
+        return None
+    else:
+        return False
+    
+
+# 종착역 이름 따기
+def find_tmn_stin_cd_name(tmn_stin_cd,line_number):
+    #print("\n",tmn_stin_cd,line_number,"\n")
+    try:
+        if line_number!="B1":
+            tmn_stin_cd=int(tmn_stin_cd)
+    except:
+        pass
+    tmn_stin_name = excel_station_codes[(excel_station_codes['STIN_CD'] == tmn_stin_cd) & (excel_station_codes['LN_CD'] == line_number)].iloc[0,5]
+
+    return tmn_stin_name
+
+
+# 최종 남은 도착시간 따기
+def get_arrival_time(start,line_number,route_forward,schedule_data,right_now):
+
+    time_format = "%H%M%S"
+    now_dt = right_now.strftime(time_format)
+    now_dt=datetime.strptime(now_dt, time_format)
+    approach_info=[]
+
+    for row in schedule_data['body']:
+        if isinstance(row['arvTm'], str):
+            arv_tm = row['arvTm']
+        else:
+            arv_tm = row['dptTm']
+        if not arv_tm.startswith("00"):
+            tmn_stin_name=find_tmn_stin_cd_name(row['tmnStinCd'],line_number)
+            train_forward=get_direction(start,tmn_stin_name,line_number)
+            arv_tm_dt = datetime.strptime(arv_tm, time_format)
+            time_difference = (arv_tm_dt - now_dt).total_seconds()
+
+            if time_difference>=0 and str(line_number)==row['lnCd'] and route_forward==train_forward:
+                arrival_name=find_tmn_stin_cd_name(row['tmnStinCd'],line_number)
+                int_time_difference=int(time_difference/60)
+                approach_info.append([arrival_name,int_time_difference])
+
+        if len(approach_info)==2:
+            return approach_info
+    
+    now_dt_str=now_dt.strftime(time_format)
+    for row in schedule_data['body']:
+        if isinstance(row['arvTm'], str):
+            arv_tm = row['arvTm']
+        else:
+            arv_tm = row['dptTm']
+        if arv_tm.startswith("00") and not now_dt_str.startswith("00"):
+            tmn_stin_name=find_tmn_stin_cd_name(row['tmnStinCd'],line_number)
+            train_forward=get_direction(start,tmn_stin_name,line_number)
+            arv_tm_dt = datetime.strptime(arv_tm, time_format)
+            arv_tm_dt += timedelta(days=1)
+            time_difference = (arv_tm_dt - now_dt).total_seconds()
+
+            if time_difference>=0 and str(line_number)==row['lnCd'] and route_forward==train_forward:
+                arrival_name=find_tmn_stin_cd_name(row['tmnStinCd'],line_number)
+                int_time_difference=int(time_difference/60)
+                approach_info.append([arrival_name,int_time_difference])
+        
+        if len(approach_info)==2 or not arv_tm.startswith("00"):
+            return approach_info
+        
+
+# 라벨 생성
+def show_approach_info(approach_info):
+    global labels
+    font_size = 20
+    for label in labels:
+        label.destroy()
+    labels.clear()
+
+    # 빠른쪽
+    subway_info_1_text = tk.Label(bottom_frame, text=f"당역 도착예정 : {approach_info[0][0]}행", 
+                                  font=("Helvetica", font_size, "bold"), bg="black", fg="#D3D3D3")
+    subway_info_1_text.place(x=100, y=20)
+    labels.append(subway_info_1_text)
+    subway_info_1_number = tk.Label(bottom_frame, text=f"{approach_info[0][1]}", 
+                                    font=("Helvetica", font_size, "bold"), bg="black", fg="yellow")
+    subway_info_1_number.place(x=subway_info_1_text.winfo_reqwidth() + 110, y=20)
+    labels.append(subway_info_1_number)
+    subway_info_1_minute = tk.Label(bottom_frame, text="분", 
+                                    font=("Helvetica", font_size, "bold"), bg="black", fg="#D3D3D3")
+    subway_info_1_minute.place(x=subway_info_1_number.winfo_reqwidth() + subway_info_1_text.winfo_reqwidth() + 120, y=20)
+    labels.append(subway_info_1_minute)
+
+    # 느린쪽
+    subway_info_2_text = tk.Label(bottom_frame, text=f"다음열차 : {approach_info[1][0]}행", 
+                                  font=("Helvetica", font_size, "bold"), bg="black", fg="#D3D3D3")
+    subway_info_2_text.place(x=610, y=20)
+    labels.append(subway_info_2_text)
+    subway_info_2_number = tk.Label(bottom_frame, text=f"{approach_info[1][1]}", 
+                                    font=("Helvetica", font_size, "bold"), bg="black", fg="skyblue")
+    subway_info_2_number.place(x=610 + subway_info_2_text.winfo_reqwidth() + 10, y=20)
+    labels.append(subway_info_2_number)
+    subway_info_2_minute = tk.Label(bottom_frame, text="분", 
+                                    font=("Helvetica", font_size, "bold"), bg="black", fg="#D3D3D3")
+    subway_info_2_minute.place(x=610 + subway_info_2_text.winfo_reqwidth() + subway_info_2_number.winfo_reqwidth() + 20, y=20)
+    labels.append(subway_info_2_minute)
 
 # 최단 경로 찾기 (다익스트라 알고리즘)
 def visitPlace(visit, routing):
@@ -907,6 +1088,8 @@ def draw_shortest_path(start, end):
 
     # UI에 시간 정보 업데이트
     movetime_label.config(text=f"총 여행 시간: {total_time} 분, 총 이동 거리: {total_distance} km")
+    
+    remain_arvTm(start,path[1])
 
       
 # 체크박스 상태를 저장할 변수들
@@ -1083,7 +1266,6 @@ def create_facility_buttons():
         button.bind("<Leave>", hide_tooltip)
 
 canvas.bind("<Button-1>", on_click)
-update_time()
 create_facility_buttons()  # 편의시설 버튼 생성
 draw_map()
 root.mainloop()
